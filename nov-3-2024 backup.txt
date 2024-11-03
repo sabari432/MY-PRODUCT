@@ -1,0 +1,2665 @@
+package com.company.activitytracker;
+
+
+import com.sun.jna.platform.win32.WinDef.HWND;
+import com.sun.jna.platform.win32.User32;
+import com.sun.jna.ptr.IntByReference;
+import oshi.SystemInfo;
+import oshi.software.os.OperatingSystem;
+import org.jnativehook.GlobalScreen;
+import org.jnativehook.NativeHookException;
+import org.jnativehook.keyboard.NativeKeyEvent;
+import org.jnativehook.keyboard.NativeKeyListener;
+import org.jnativehook.mouse.NativeMouseEvent;
+import org.jnativehook.mouse.NativeMouseInputListener;
+import java.net.URI;
+import java.sql.Date;
+import java.time.*;
+import java.time.format.DateTimeParseException;
+import java.time.format.DateTimeFormatter;
+import java.time.LocalDateTime;
+import java.io.File;
+import java.io.IOException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.time.ZonedDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.*;
+import javax.swing.JOptionPane;
+import java.io.FileWriter;
+import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.file.StandardCopyOption;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import java.net.InetAddress;
+import java.sql.Timestamp;
+import java.awt.Desktop;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+import javax.swing.event.HyperlinkEvent;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.io.*;
+import java.nio.file.*;
+import java.util.List;
+import java.util.Timer;
+import java.util.Properties;
+import java.io.FileInputStream;
+import java.io.InputStream;
+public class ALFOT extends JFrame implements NativeKeyListener, NativeMouseInputListener {
+
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+    private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+
+    private static boolean isPopupDisplayed = false;
+    private static LocalDateTime loginTime;
+    private static LocalDateTime lastActiveTime;
+    private static LocalDateTime inactiveStartTime;
+    private static Duration sessionActiveTime = Duration.ZERO;
+    private static Duration sessionInactiveTime = Duration.ZERO;
+    private static boolean isInactive = false;
+    private static Timer inactivityTimer;
+    private static Timer dataSaveTimer;
+    private static boolean popupDisplayed = false;
+
+    private static JFrame trackingFrame;
+    private static JLabel activeTimeLabel;
+    private static JLabel inactiveTimeLabel;
+    private static JLabel lockCountLabel;
+    private static boolean isLoggedIn = true; // Assume already logged in for direct access
+    private static int lockCount = 0;
+    private static boolean keyPressed = false;
+    private static Duration previousInactiveDuration = Duration.ZERO;
+    private static LocalDateTime popupStartTime;  // Declare popupStartTime here
+//  private static boolean isPopupDisplayed = false; // Flag to track popup display status
+
+
+    private static final String LATEST_VERSION_URL = "https://pmsupdatebucket.s3.amazonaws.com/latest_version.txt";
+    private static final String CURRENT_VERSION = "1.0.0.13"; // Update this to your current version
+    private static final String DOWNLOAD_FOLDER = "C:\\PMS";
+    private static final String APPLICATION_EXE_PATH = "C:\\PMS\\PMS.exe"; // Path to your application's .exe file
+
+
+    // List of update file URLs
+    private static final Map<String, String> FILE_URLS = new HashMap<String, String>() {{
+
+        put("ApplicationTracker.jar", "https://pmsupdatebucket.s3.amazonaws.com/ApplicationTracker.jar");
+        put("jna-5.12.1.jar", "https://pmsupdatebucket.s3.amazonaws.com/jna-5.12.1.jar");
+        put("jna-5.14.0.jar", "https://pmsupdatebucket.s3.amazonaws.com/jna-5.14.0.jar");
+        put("jna-platform-5.12.1.jar", "https://pmsupdatebucket.s3.amazonaws.com/jna-platform-5.12.1.jar");
+        put("jna-platform-5.14.0.jar", "https://pmsupdatebucket.s3.amazonaws.com/jna-platform-5.14.0.jar");
+        put("jnativehook-2.1.0.jar", "https://pmsupdatebucket.s3.amazonaws.com/jnativehook-2.1.0.jar");
+        put("jnativehook-2.2.2.jar", "https://pmsupdatebucket.s3.amazonaws.com/jnativehook-2.2.2.jar");
+        put("json-20240303.jar", "https://pmsupdatebucket.s3.amazonaws.com/json-20240303.jar");
+        put("log4j-api-2.23.1.jar", "https://pmsupdatebucket.s3.amazonaws.com/log4j-api-2.23.1.jar");
+        put("log4j-core-2.23.1.jar", "https://pmsupdatebucket.s3.amazonaws.com/log4j-core-2.23.1.jar");
+        put("mysql-connector-j-9.0.0.jar", "https://pmsupdatebucket.s3.amazonaws.com/mysql-connector-j-9.0.0.jar");
+        put("oshi-core-6.2.2.jar", "https://pmsupdatebucket.s3.amazonaws.com/oshi-core-6.2.2.jar");
+        put("PMS_logo.jpg", "https://pmsupdatebucket.s3.amazonaws.com/PMS_logo.jpg");
+        put("PMS.exe", "https://pmsupdatebucket.s3.amazonaws.com/PMS.exe");
+        put("PMS.jpg", "https://pmsupdatebucket.s3.amazonaws.com/PMS.jpg");
+        put("slf4j-api-2.0.13.jar", "https://pmsupdatebucket.s3.amazonaws.com/slf4j-api-2.0.13.jar");
+        put("sqlite-jdbc-3.46.0.0.jar", "https://pmsupdatebucket.s3.amazonaws.com/sqlite-jdbc-3.46.0.0.jar");
+        put("logo.jpg","https://pmsupdatebucket.s3.amazonaws.com/logo.jpg");
+        put("version.txt", "https://pmsupdatebucket.s3.amazonaws.com/version.txt");
+    }};
+
+
+
+
+    // Application tracking variables
+    private static final Map<Integer, ApplicationData> activeApplications = new HashMap<>();
+    private static int currentActivePid = -1;
+    private static boolean wasApplicationActive = false;
+    private static final Logger logger = LogManager.getLogger(ALFOT.class);
+    private static final long CHECK_INTERVAL_MS = 60000; // 60 seconds
+    private static BrowserHistoryTracker.UrlVisit lastUrlVisit = null;
+
+    private static final String LOG_DIRECTORY_PATH = "C:/logs"; // Absolute path
+    private static Duration totalBreakTime = Duration.ZERO; // Total break time
+    private static LocalDateTime sessionStartTime = LocalDateTime.now(); // Time when the session started
+
+
+
+    private static String systemName;
+    private static final String username = System.getProperty("user.name");
+
+
+    private static boolean isInactivityPopupDisplayed = false; // Flag for inactivity popup
+
+
+    public static void main(String[] args) {
+
+        checkForUpdate();
+        cleanLogFile("C:\\logs\\activity.log");
+
+        ActivityMonitor monitor = new ActivityMonitor();
+        new Thread(() -> monitor.startMonitoring()).start();
+
+        USBDetector usbDetector = new USBDetector();
+        new Thread(() -> usbDetector.startDetection()).start();
+
+        checkAndStoreSystemName();
+
+//        ensureLogDirectoryExists();
+
+
+        logger.info("Starting application...");
+        String logConfigPath = System.getProperty("log4j.configurationFile");
+        logger.info("Log4j configuration file path: " + logConfigPath);
+
+        System.setProperty("log4j.configurationFile", "log4j2.xml");
+
+        System.out.println("Starting Application Tracker...");
+
+        BrowserHistoryTracker tracker = new BrowserHistoryTracker();
+        Thread trackerThread = new Thread(tracker);
+        trackerThread.start();
+        try {
+            ProcessBuilder processBuilder = new ProcessBuilder("tasklist.exe");
+            processBuilder.directory(new File("C:\\Windows\\System32"));
+            Process process = processBuilder.start();
+
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    System.out.println(line);
+                }
+            }
+
+            int exitCode = process.waitFor();
+            System.out.println("Exited with code: " + exitCode);
+        } catch (IOException e) {
+            // Log IOException
+            logger.error("IOException occurred: {}", e.getMessage(), e);
+        } catch (InterruptedException e) {
+            // Log InterruptedException
+            logger.error("InterruptedException occurred: {}", e.getMessage(), e);
+            // Restore interrupted status
+            Thread.currentThread().interrupt();
+        }
+
+
+        try {
+//            Disable JNativeHook logging to avoid unnecessary console output
+//            Logger logger = Logger.getLogger(GlobalScreen.class.getPackage().getName());
+//            logger.setLevel(Level.OFF);
+
+            // Initialize global screen hook
+            GlobalScreen.registerNativeHook();
+
+            // Register key and mouse listeners
+            GlobalScreen.addNativeKeyListener(new NativeKeyListener() {
+                @Override
+                public void nativeKeyPressed(NativeKeyEvent e) {
+                    if (!keyPressed) {
+                        resetInactivityTimer();
+                        keyPressed = true;
+                    }
+
+                    updateActiveAndInactiveTime();
+                }
+
+                @Override
+                public void nativeKeyReleased(NativeKeyEvent e) {
+                    keyPressed = false;
+                }
+
+                @Override
+                public void nativeKeyTyped(NativeKeyEvent e) {
+                }
+
+            });
+
+            GlobalScreen.addNativeMouseListener(new NativeMouseInputListener() {
+                @Override
+                public void nativeMouseClicked(NativeMouseEvent e) {
+                    resetInactivityTimer();
+                    updateActiveAndInactiveTime();
+                }
+
+                @Override
+                public void nativeMousePressed(NativeMouseEvent e) {
+                    resetInactivityTimer();
+                }
+
+                @Override
+                public void nativeMouseReleased(NativeMouseEvent e) {
+                    resetInactivityTimer();
+                }
+
+                @Override
+                public void nativeMouseMoved(NativeMouseEvent e) {
+                    updateActiveAndInactiveTime();
+                }
+
+                @Override
+                public void nativeMouseDragged(NativeMouseEvent e) {
+                }
+            });
+
+            String username = System.getProperty("user.name");
+            new Thread(() -> trackApplications(username)).start();
+
+        } catch (NativeHookException e) {
+            // Log the error with a clear message and include the stack trace
+            logger.error("NativeHookException occurred: {}", e.getMessage(), e);
+            System.exit(1); // Consider whether exiting is the best approach
+        }
+
+
+        loginTime = LocalDateTime.now();
+        lastActiveTime = LocalDateTime.now();
+        SwingUtilities.invokeLater(ALFOT::new);
+
+        // Record login time when the application starts
+        loginTime = LocalDateTime.now();
+
+        // Initialize the system tray icon
+        if (SystemTray.isSupported()) {
+            SystemTray tray = SystemTray.getSystemTray();
+            Image image = Toolkit.getDefaultToolkit().createImage("PMS_logo.jpg"); // Provide path to your icon image
+
+
+            ActionListener listener = new ActionListener() {
+
+                boolean isPopupOpen = false;
+                boolean isDataPaused = false; // To pause data saving during user-specified inactivity period
+                private static boolean isInactive = false; // Flag to indicate if the user is inactive
+                LocalDateTime inactiveEndTime = null;
+
+                public void actionPerformed(ActionEvent e) {
+                    String portalUrl = null; // Declare portalUrl here
+                    String appVersion = null; // Declare appVersion here
+
+                    // Load the URL and version from the properties file
+                    try (FileInputStream fis = new FileInputStream("config.properties")) {
+                        Properties properties = new Properties();
+                        properties.load(fis);
+                        portalUrl = properties.getProperty("portal.url");
+                        appVersion = properties.getProperty("app.version"); // Read version from properties
+                    } catch (Exception fileException) {
+                        logger.error("Failed to load config.properties: {}", fileException.getMessage(), fileException);
+                    }
+
+                    if (isPopupOpen) {
+                        // Prevent opening a new popup if one is already open
+                        return;
+                    }
+
+                    isPopupOpen = true; // Set flag to true when popup opens
+                    LocalDateTime currentTime = LocalDateTime.now();
+
+                    if (isDataPaused && currentTime.isBefore(inactiveEndTime)) {
+                        isPopupOpen = false; // Allow further popups
+                        return; // Skip further execution during pause
+                    } else {
+                        isDataPaused = false; // Reset pause after inactivity ends
+                    }
+
+                    // Calculate total session duration
+                    Duration totalSessionDuration = Duration.between(sessionStartTime, currentTime);
+
+                    // Check if popup was displayed for more than 5 minutes
+                    if (isPopupDisplayed) {
+                        Duration popupDisplayDuration = Duration.between(popupStartTime, currentTime);
+                        if (popupDisplayDuration.toMinutes() > 180) {
+                            // Reset session start time to current time if popup displayed for more than 5 minutes
+                            sessionStartTime = currentTime;
+                            totalBreakTime = Duration.ZERO; // Reset total break time to zero
+                        }
+                    }
+
+                    // Format total duration
+                    long totalHours = totalSessionDuration.toHours();
+                    long totalMinutes = totalSessionDuration.toMinutes() % 60;
+                    long totalSeconds = totalSessionDuration.getSeconds() % 60;
+                    String totalDurationFormatted = String.format("%02d:%02d:%02d", totalHours, totalMinutes, totalSeconds);
+
+                    // Format the login time
+                    String formattedLoginTime = sessionStartTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+
+                    // Format break time
+                    long breakHours = totalBreakTime.toHours();
+                    long breakMinutes = totalBreakTime.toMinutes() % 60;
+                    long breakSeconds = totalBreakTime.getSeconds() % 60;
+                    String totalBreakTimeFormatted = String.format("%02d:%02d:%02d", breakHours, breakMinutes, breakSeconds);
+
+                    // Prepare the HTML formatted message with a clickable link and version info
+                    String message = String.format(
+                            "<html>Total Duration: %s<br>Login Time: %s<br>Total Break Time: %s<br><br></html>",
+                            totalDurationFormatted, formattedLoginTime, totalBreakTimeFormatted
+                    );
+
+// Save current UIManager settings to restore later
+                    Color originalBackground = UIManager.getColor("OptionPane.background");
+                    Color originalPanelBackground = UIManager.getColor("Panel.background");
+                    Color originalButtonBackground = UIManager.getColor("Button.background");
+
+// Set UIManager properties to white
+                    UIManager.put("OptionPane.background", Color.WHITE);
+                    UIManager.put("Panel.background", Color.WHITE);
+                    UIManager.put("Button.background", Color.WHITE);
+
+// Create a JEditorPane to render HTML content
+                    JEditorPane editorPane = new JEditorPane("text/html", message);
+                    editorPane.setEditable(false);
+                    editorPane.setBackground(Color.WHITE);
+
+// Add a HyperlinkListener to handle link clicks
+                    editorPane.addHyperlinkListener(evt -> {
+                        if (evt.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
+                            try {
+                                // Open the clicked URL in the default browser
+                                Desktop.getDesktop().browse(evt.getURL().toURI());
+                            } catch (Exception ex) {
+                                // Log the error with a clear message and include the stack trace
+                                logger.error("An unexpected error occurred: {}", ex.getMessage(), ex);
+                            }
+                        }
+                    });
+
+                    // Load the image icon from a file or resource
+                    ImageIcon originalIcon = new ImageIcon("logo.jpg");
+
+                    // Resize the icon (width: 100, height: 100 in this example)
+                    Image scaledImage = originalIcon.getImage().getScaledInstance(130, 50, Image.SCALE_SMOOTH);
+                    ImageIcon resizedIcon = new ImageIcon(scaledImage);
+
+                    // Use HTML to style the options with circles
+                    String[] options = {"Pause", "Take me Portal", "Version"};
+
+                    int choice = JOptionPane.showOptionDialog(
+                            null,
+                            editorPane,
+                            "Session Information",
+                            JOptionPane.DEFAULT_OPTION,
+                            JOptionPane.INFORMATION_MESSAGE,
+                            resizedIcon,
+                            options,
+                            options[0]
+                    );
+
+
+                    // Check which button was clicked
+                    if (choice == 0) { // If "IDLE" was clicked
+                        if (!isPopupDisplayed && !isInactivityPopupDisplayed) { // Check if no popup is currently displayed
+                            // Prompt the user to provide a reason
+                            String[] reasons = {"Break", "Global Meeting", "Client Meeting", "Stand-Up Meeting", "Clarification - Supervisor", "Client System Downtime", "Internal System Downtime", "HR Fun Event", "Other - Description"};
+                            String selectedReason = (String) JOptionPane.showInputDialog(
+                                    null,
+                                    "Select the reason for your upcoming idle time:",
+                                    "Select Reason",
+                                    JOptionPane.QUESTION_MESSAGE,
+                                    null,
+                                    reasons,
+                                    reasons[0]
+                            );
+
+
+                            if (selectedReason != null) {
+                                String input = JOptionPane.showInputDialog(
+                                        null,
+                                        "Enter inactive duration in minutes:",
+                                        "Inactive Duration",
+                                        JOptionPane.QUESTION_MESSAGE
+                                );
+
+                                try {
+                                    int inactiveDuration = Integer.parseInt(input); // Parse user input
+                                    if (inactiveDuration > 0) {
+                                        isDataPaused = true; // Pause data saving
+                                        inactiveEndTime = LocalDateTime.now().plusMinutes(inactiveDuration); // Set inactive end time
+                                        isInactive = true; // Set inactive flag to true
+
+                                        // Check if "Other - Specify" is selected
+                                        String additionalReason = null;
+                                        if ("Other - Specify".equals(selectedReason)) {
+                                            additionalReason = JOptionPane.showInputDialog(
+                                                    null,
+                                                    "Please specify the reason:",
+                                                    "Specify Reason",
+                                                    JOptionPane.QUESTION_MESSAGE
+                                            );
+                                        }
+
+                                        // Call your popup or inactivity handler with the inactive duration
+                                        showPopup(selectedReason, additionalReason, inactiveDuration); // Pass inactiveDuration
+                                        isPopupDisplayed = true;
+                                        popupStartTime = LocalDateTime.now();
+
+                                        // Start a new thread to handle the timer
+                                        new Thread(() -> {
+                                            try {
+                                                Thread.sleep((long) inactiveDuration * 60 * 1000); // Wait for the user-defined time
+                                                if (isDataPaused) { // Check if data is still paused
+                                                    isDataPaused = false; // Reset pause after duration ends
+                                                    isInactive = false; // Reset inactive flag to false after time is up
+                                                    loginTime = LocalDateTime.now();
+                                                    sessionActiveTime = Duration.ZERO;
+                                                    sessionInactiveTime = Duration.ZERO;
+                                                    // Show completion message
+                                                    JOptionPane.showMessageDialog(null, "Your idle time is completed.", "Time Out", JOptionPane.INFORMATION_MESSAGE);
+                                                }
+                                            } catch (InterruptedException ex) {
+                                                // Log the error with a clear message and include the stack trace
+                                                logger.error("Thread was interrupted: {}", ex.getMessage(), ex);
+                                                // Restore the interrupted status
+                                                Thread.currentThread().interrupt();
+                                            } finally {
+                                                isPopupDisplayed = false; // Reset the popup display flag
+                                            }
+                                        }).start();
+                                    } else {
+                                        JOptionPane.showMessageDialog(null, "Please enter a duration greater than 0.");
+                                    }
+                                } catch (NumberFormatException ex) {
+                                    JOptionPane.showMessageDialog(null, "Invalid duration input. Please enter a valid number.");
+                                }
+                            }
+                        }
+
+                    }else if (choice == 1) { // If "take me portal" was clicked
+                        try {
+                            // Get the portal URL from DatabaseConfig
+                            String portalUrls = DatabaseConfig.getPortalUrl(); // Retrieve the portal URL
+
+                            // Open the specified URL in the default browser
+                            if (portalUrls != null) {
+                                Desktop.getDesktop().browse(new URI(portalUrls));
+                            } else {
+                                logger.error("Portal URL not found in properties file.");
+                            }
+                        } catch (Exception ex) {
+                            // Log the error with a clear message and include the stack trace
+                            logger.error("An unexpected error occurred: {}", ex.getMessage(), ex);
+                        }
+
+                    } else if (choice == 2) { // If "Show Version" was clicked
+                        // Get the app version from DatabaseConfig
+                        String appVersions = DatabaseConfig.getAppVersion(); // Retrieve the app version
+
+                        // Show the version information in a JOptionPane
+                        JOptionPane.showMessageDialog(
+                                null,
+                                "Your Application is up-to-date. Version " + appVersions, // Use the appVersion variable
+                                "Version Information",
+                                JOptionPane.INFORMATION_MESSAGE
+                        );
+                    }
+
+
+
+                    // Restore original UIManager settings after displaying the dialog
+                    UIManager.put("OptionPane.background", originalBackground);
+                    UIManager.put("Panel.background", originalPanelBackground);
+                    UIManager.put("Button.background", originalButtonBackground);
+
+                    isPopupOpen = false;
+                }
+
+                public static void showPopup(String reasons, String description, int inactiveDuration) {
+                    if (isInactivityPopupDisplayed) return; // Exit if inactivity popup is already handled
+
+                    isInactivityPopupDisplayed = true; // Set flag to true when inactivity handling starts
+                    LocalDateTime startTime = LocalDateTime.now(); // Capture start time when inactivity is detected
+
+                    String username = System.getProperty("user.name");
+                    LocalDateTime endTime = startTime.plusMinutes(inactiveDuration); // Use user-defined inactive duration
+
+                    // Calculate duration between start and end times
+                    long durationSeconds = Duration.between(startTime, endTime).getSeconds();
+                    long hours = durationSeconds / 3600;
+                    long minutes = (durationSeconds % 3600) / 60;
+                    long seconds = durationSeconds % 60;
+                    String durationFormatted = String.format("%02d:%02d:%02d", hours, minutes, seconds);
+
+                    // Determine category (Idle, Productive, Downtime) based on reason
+                    String totalIdleHours = "", totalProductiveHours = "", totalMeeting = "", totalDowntime = "";
+                    if (reasons.equals("Break") || reasons.equals("HR Fun Event") || reasons.startsWith("Other")) {
+                        totalIdleHours = durationFormatted;
+                    } else if (reasons.equals("Stand-Up Meeting") || reasons.equals("Global Meeting") || reasons.equals("Client Meeting")) {
+                        totalProductiveHours = durationFormatted;
+                    } else if (reasons.equals("Client System Downtime") || reasons.equals("Internal System Downtime")) {
+                        totalDowntime = durationFormatted;
+                    } else {
+                        totalMeeting = durationFormatted;
+                    }
+
+                    // Save data to the database
+                    savepopupReason(
+                            reasons,
+                            description,
+                            startTime,
+                            endTime,
+                            username,
+                            durationSeconds, // Duration in seconds
+                            reasons,
+                            totalIdleHours,
+                            totalProductiveHours,
+                            totalMeeting,
+                            0, // Total breaks
+                            totalDowntime,
+                            systemName
+                    );
+
+                    // Reset the inactivity flag after handling the inactivity
+                    isInactivityPopupDisplayed = false;
+//                  loginTime = LocalDateTime.now(); // Set new login time to current time after popup closes
+                }
+
+            };
+            PopupMenu popup = new PopupMenu();
+            MenuItem item = new MenuItem("Show Duration");
+            item.addActionListener(listener);
+            popup.add(item);
+
+            TrayIcon trayIcon = new TrayIcon(image, "PMS...", popup);
+            trayIcon.setImageAutoSize(true);
+
+            try {
+                tray.add(trayIcon);
+            } catch (AWTException e) {
+                System.err.println("TrayIcon could not be added.");
+            }
+        } else {
+            System.err.println("System tray not supported!");
+        }
+
+        loginTime = LocalDateTime.now();
+        lastActiveTime = loginTime;
+        sessionInactiveTime = Duration.ZERO;
+        sessionActiveTime = Duration.ZERO;
+        isInactive = false;
+
+
+        // Start native hook for keyboard and mouse events
+        try {
+            GlobalScreen.registerNativeHook();
+        }catch (NativeHookException e) {
+            // Log the error with a clear message and include the stack trace
+            logger.error("Failed to register native hook: {}", e.getMessage(), e);
+        }
+
+        GlobalScreen.addNativeKeyListener(new ALFOT());
+        GlobalScreen.addNativeMouseListener(new ALFOT());
+
+        // Start tracking window in background
+        SwingUtilities.invokeLater(ALFOT::openTrackingWindow);
+
+        // Start timer to check inactivity
+        startInactivityTimer();
+
+        // Start timer to save data periodically
+        startDataSaveTimer();  // Add this line to start the data saving timer
+
+        // Handle shutdown events
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            System.out.println("Shutdown hook activated.");
+            ALFOT.logout();
+        }));
+
+    }
+
+    private static void checkAndStoreSystemName() {
+        File logDir = new File("C:\\logs\\system");
+
+        if (!logDir.exists()) {
+            System.out.println("C:\\logs\\system directory does not exist. Creating it.");
+            logDir.mkdirs(); // Create directories including parent directories if needed
+        }
+
+        // Check if the C:\logs\system directory is empty
+        if (logDir.isDirectory() && Objects.requireNonNull(logDir.list()).length == 0) {
+            System.out.println("C:\\logs\\system directory is empty. Prompting for system name.");
+            systemName = JOptionPane.showInputDialog(null, "Enter your system name:");
+
+            if (systemName != null && !systemName.isEmpty()) {
+                System.out.println("System name entered: " + systemName);
+                storeSystemName(systemName);
+                saveSystemNameToFile(systemName);
+            } else {
+                System.out.println("No system name entered. Exiting application.");
+                return; // Exit if no system name is provided
+            }
+        } else {
+            System.out.println("C:\\logs\\system directory is not empty or could not be accessed.");
+            // Retrieve the stored system name from the file if it exists
+            systemName = retrieveSystemNameFromFile();
+            System.out.println("Retrieved system name from file: " + systemName);
+        }
+    }
+
+    private static void storeSystemName(String systemName) {
+        String jdbcURL = DatabaseConfig.getDbUrl();  // Get DB URL from DatabaseConfig
+        String dbUser = DatabaseConfig.getDbUser();  // Get DB User from DatabaseConfig
+        String dbPassword = DatabaseConfig.getDbPassword();  // Get DB Password from DatabaseConfig
+
+
+        try (Connection connection = DriverManager.getConnection(jdbcURL, dbUser, dbPassword)) {
+            // Insert system name into the active_sessions table
+            String sqlActiveSessions = "INSERT INTO active_sessions (system_name) VALUES (?)";
+            try (PreparedStatement statement = connection.prepareStatement(sqlActiveSessions)) {
+                statement.setString(1, systemName);
+                statement.executeUpdate();
+                System.out.println("System name stored in the active_sessions table successfully.");
+            }
+
+            // Insert system name into the inactivity_log table
+            String sqlInactivityLog = "INSERT INTO inactivity_log (system_name) VALUES (?)";
+            try (PreparedStatement statement = connection.prepareStatement(sqlInactivityLog)) {
+                statement.setString(1, systemName);
+                statement.executeUpdate();
+                System.out.println("System name stored in the inactivity_log table successfully.");
+            }
+
+            // Insert system name into the url_visits table
+            String sqlUrlVisits = "INSERT INTO url_visits (system_name) VALUES (?)";
+            try (PreparedStatement statement = connection.prepareStatement(sqlUrlVisits)) {
+                statement.setString(1, systemName);
+                statement.executeUpdate();
+                System.out.println("System name stored in the url_visits table successfully.");
+            }
+            String sqlsuspicious_activity = "INSERT INTO insuspicious_activity (system_name) VALUES (?)";
+            try (PreparedStatement statement = connection.prepareStatement(sqlsuspicious_activity)) {
+                statement.setString(1, systemName);
+                statement.executeUpdate();
+                System.out.println("System name stored in the insuspicious_activity table successfully.");
+            }
+
+            String sqlusb_logs = "INSERT INTO inusb_logs (system_name) VALUES (?)";
+            try (PreparedStatement statement = connection.prepareStatement(sqlusb_logs)) {
+                statement.setString(1, systemName);
+                statement.executeUpdate();
+                System.out.println("System name stored in the inusb_logs table successfully.");
+            }
+
+            // Save application usage data
+            String username = System.getProperty("user.name"); // Get the system username
+            String appName = "ExampleApp"; // Replace with your actual application name
+            Timestamp openTime = new Timestamp(System.currentTimeMillis()); // Use the current time as open time
+            Timestamp closeTime = new Timestamp(System.currentTimeMillis() + 10000); // Example close time (10 seconds later)
+
+            // Call the saveApplicationUsage method
+            saveApplicationUsage(username, systemName, appName, openTime, closeTime);
+
+        } catch (SQLException e) {
+            // Log the error with a clear message and include the stack trace
+            logger.error("Database error: {}", e.getMessage(), e);
+        }
+    }
+
+// The saveApplicationUsage method should already be defined as shown in the previous responses.
+
+    private static void saveSystemNameToFile(String systemName) {
+        File file = new File("C:\\logs\\system\\system_name.txt");
+
+        try (FileWriter fw = new FileWriter(file);
+             PrintWriter pw = new PrintWriter(fw)) {
+            pw.println(systemName);
+            System.out.println("System name saved to file successfully.");
+        } catch (IOException e) {
+            // Log the error with a clear message and include the stack trace
+            logger.error("Error saving system name to file: {}", e.getMessage(), e);
+        }
+    }
+
+    private static String retrieveSystemNameFromFile() {
+        File file = new File("C:\\logs\\system\\system_name.txt");
+        if (file.exists()) {
+            try (java.util.Scanner scanner = new java.util.Scanner(file)) {
+                return scanner.hasNextLine() ? scanner.nextLine() : null;
+            } catch (IOException e) {
+                // Log the error with a clear message and include the stack trace
+                logger.error("Error reading system name from file: {}", e.getMessage(), e);
+            }
+        }
+        return null;
+    }
+
+
+    private static void openTrackingWindow() {
+        // Create and configure tracking window
+        trackingFrame = new JFrame("Employee Activity Tracker - Tracking Window");
+        trackingFrame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+        trackingFrame.setSize(400, 300);
+
+        JPanel panel = new JPanel();
+        trackingFrame.add(panel);
+        panel.setLayout(null);
+
+        JLabel loginTimeLabel = new JLabel("Login Time: " + formatter.format(loginTime));
+        loginTimeLabel.setBounds(10, 20, 300, 25);
+        panel.add(loginTimeLabel);
+
+        activeTimeLabel = new JLabel("Active Time: ");
+        activeTimeLabel.setBounds(10, 50, 300, 25);
+        panel.add(activeTimeLabel);
+
+        inactiveTimeLabel = new JLabel("Inactive Time: ");
+        inactiveTimeLabel.setBounds(10, 80, 300, 25);
+        panel.add(inactiveTimeLabel);
+
+        lockCountLabel = new JLabel("Lock Count: " + lockCount);
+        lockCountLabel.setBounds(10, 110, 300, 25);
+        panel.add(lockCountLabel);
+
+        // Timer to update active and inactive time labels
+        Timer activeTimer = new Timer(true);
+        activeTimer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                updateActiveAndInactiveTime();
+                long hours = sessionActiveTime.toHours();
+                long minutes = sessionActiveTime.toMinutes() % 60;
+                long seconds = sessionActiveTime.getSeconds() % 60;
+                activeTimeLabel.setText(String.format("Active Time: %02d:%02d:%02d", hours, minutes, seconds));
+
+                if (isInactive) {
+                    long inactiveHours = sessionInactiveTime.toHours();
+                    long inactiveMinutes = sessionInactiveTime.toMinutes() % 60;
+                    long inactiveSeconds = sessionInactiveTime.getSeconds() % 60;
+                    inactiveTimeLabel.setText(String.format("Inactive Time: %02d:%02d:%02d", inactiveHours, inactiveMinutes, inactiveSeconds));
+                } else {
+                    inactiveTimeLabel.setText("Inactive Time: 00:00:00");
+                }
+            }
+        }, 0, 1000);
+
+
+        // Button to logout
+        JButton closeButton = new JButton("Logout");
+        closeButton.setBounds(10, 140, 80, 25);
+        panel.add(closeButton);
+        closeButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                confirmLogout();
+            }
+        });
+
+        // Make tracking frame invisible to the user
+        trackingFrame.setVisible(false);
+    }
+
+    private static void confirmLogout() {
+        int option = JOptionPane.showConfirmDialog(trackingFrame, "Are you sure you want to logout?", "Logout Confirmation", JOptionPane.YES_NO_OPTION);
+        if (option == JOptionPane.YES_OPTION) {
+            logout();
+        }
+    }
+
+    private static void login() {
+        loginTime = LocalDateTime.now(); // Local time, convert to UTC for storage
+        lastActiveTime = loginTime;
+        inactiveStartTime = null;
+        isLoggedIn = true;
+        logger.info("User logged in at: {}", loginTime);
+
+    }
+
+
+    private static void logout() {
+        if (isLoggedIn) {
+            ZonedDateTime logoutTimeUTC = LocalDateTime.now().atZone(ZoneId.systemDefault()).withZoneSameInstant(ZoneOffset.UTC);
+            saveActiveSession(loginTime.atZone(ZoneId.systemDefault()).withZoneSameInstant(ZoneOffset.UTC).toLocalDateTime(), logoutTimeUTC.toLocalDateTime());
+            isLoggedIn = false;
+            logger.info("User logout in at: {}", logoutTimeUTC);
+            if (trackingFrame != null) {
+                trackingFrame.dispose();
+                trackingFrame = null;
+            }
+            System.exit(0); // Exit the application after logout
+        }
+    }
+
+
+    private void setupNativeHooks() {
+        try {
+            // Disable JNativeHook logging to avoid unnecessary console output
+            GlobalScreen.registerNativeHook();
+        } catch (NativeHookException e) {
+            logger.error("Failed to register native hook: {}", e.getMessage(), e); // Log the error with a stack trace
+            System.exit(1);
+        }
+        GlobalScreen.addNativeKeyListener(this);
+        GlobalScreen.addNativeMouseListener(this);
+    }
+
+
+    private static void startInactivityTimer() {
+        inactivityTimer = new Timer(true);
+        inactivityTimer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                try {
+                    checkInactivity();
+                    logger.info("Inactivity check performed.");
+                } catch (Exception e) {
+                    logger.error("Error during inactivity check: ", e);
+                }
+            }
+        }, 0, 1000); // Check every second for smoother handling
+        logger.info("Inactivity timer started, checking every second.");
+    }
+
+    private static void startDataSaveTimer() {
+        dataSaveTimer = new Timer(true);
+        dataSaveTimer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                try {
+                    saveDataPeriodically();
+                    logger.info("Data saved periodically.");
+                } catch (Exception e) {
+                    logger.error("Error during periodic data save: ", e);
+                }
+            }
+        }, 0, 300000); // Save data every 5 minutes (300,000 milliseconds)
+        logger.info("Data save timer started, saving data every 5 minutes.");
+    }
+
+
+    private static String selectedReason = "";
+    private static String description = "";
+    private static void saveDataPeriodically() {
+        if (isInactive) {
+            return;
+        }
+        try {
+            if (isLoggedIn) {
+                String empName = username; // Replace with actual employee name or fetch dynamically
+                String totalIdleHours = "";
+                String totalProductiveHours = "";
+                String totalMeeting = "";
+                int totalBreaks = 0;
+                String totalDowntime = "";
+
+                LocalDateTime currentTime = LocalDateTime.now();
+                ZonedDateTime currentTimeUTC = currentTime.atZone(ZoneId.systemDefault()).withZoneSameInstant(ZoneOffset.UTC);
+                ZonedDateTime loginTimeUTC = loginTime.atZone(ZoneId.systemDefault()).withZoneSameInstant(ZoneOffset.UTC);
+
+                // Check if the inactivity popup is displayed
+                if (isPopupDisplayed) {
+                    // Save the session between last saved time and popup start
+                    if (popupStartTime != null && popupStartTime.isAfter(loginTime)) {
+                        ZonedDateTime popupStartTimeUTC = popupStartTime.atZone(ZoneId.systemDefault()).withZoneSameInstant(ZoneOffset.UTC);
+
+                        // Calculate the active period before the popup
+//                        if (loginTimeUTC.toLocalDateTime().isBefore(popupStartTimeUTC.toLocalDateTime())) {
+//                            // Save the active session
+//                            saveActiveSession(loginTimeUTC.toLocalDateTime(), popupStartTimeUTC.toLocalDateTime());
+//                            logger.info("Active data saved from " + loginTimeUTC + " to " + popupStartTimeUTC + " before popup was displayed.");
+//                        }
+
+                        // Inactivity duration from popup start to current time
+                        long inactiveDurationMinutes = Duration.between(popupStartTimeUTC.toLocalDateTime(), currentTimeUTC.toLocalDateTime()).toMinutes();
+
+
+                        // Call saveInactivityReason with appropriate parameters
+                        saveInactivityReason(selectedReason, description, popupStartTimeUTC.toLocalDateTime(), currentTimeUTC.toLocalDateTime(), empName, inactiveDurationMinutes, selectedReason, totalIdleHours, totalProductiveHours, totalMeeting, totalBreaks, totalDowntime, systemName);
+                        logger.info("Inactive data saved due to popup from {} to {}.", popupStartTimeUTC, currentTimeUTC);
+                    }
+
+                    // Skip saving further during the popup
+                    logger.info("Popup displayed. Skipping periodic save.");
+                } else {
+                    // No popup, save the session data as usual
+                    saveActiveSession(loginTimeUTC.toLocalDateTime(), currentTimeUTC.toLocalDateTime());
+                    logger.info("Active data saved from {} to {}", loginTimeUTC, currentTimeUTC);
+                }
+
+                // Update loginTime to the current time only if there was no popup
+                if (!isPopupDisplayed) {
+                    loginTime = currentTime; // Reset login time for the next session
+                }
+
+                // Reset session active and inactive times for the next period
+                sessionActiveTime = Duration.ZERO;
+                sessionInactiveTime = Duration.ZERO;
+            }
+        } catch (Exception e) {
+            logger.error("Error during periodic data save: ", e);
+        }
+    }
+    private static void checkInactivity() {
+        try {
+            if (isLoggedIn && lastActiveTime != null) {
+                Duration inactivityDuration = Duration.between(lastActiveTime, LocalDateTime.now());
+
+                if (inactivityDuration.getSeconds() >= 240 && !isInactive) {
+                    // Trigger inactivity only after 1 minute of no activity
+                    isInactive = true;
+                    if (inactiveStartTime == null) {
+                        inactiveStartTime = LocalDateTime.now(); // Set start time to now for the first inactivity period
+                        sessionInactiveTime = Duration.ZERO; // Start at 0 for the first time
+                    } else {
+                        inactiveStartTime = LocalDateTime.now(); // Resume from the paused state
+                    }
+                    lockCount++;
+                    sessionActiveTime = sessionActiveTime.plus(inactivityDuration.minusSeconds(240)); // Ensure only 1 minute is deducted from active time
+                    showInactivityPopup();
+                    logger.info("Inactivity detected. Popup shown.");
+                } else if (isInactive) {
+                    // Update inactive time while inactive
+                    sessionInactiveTime = Duration.between(inactiveStartTime, LocalDateTime.now()).plus(previousInactiveDuration);
+                    logger.info("Updating inactive session time.");
+
+                    // Check for 3 hours of continuous inactivity
+                    if (sessionInactiveTime.toHours() >= 3) {
+                        // Save inactivity session to the database
+                        saveInactivityReason("Idle", "Continuous inactivity", inactiveStartTime, LocalDateTime.now(), System.getProperty("user.name"), sessionInactiveTime.toSeconds(), "Idle", "", "", "", 0, "", "");
+
+                        // Reset timers and states
+                        isInactive = false;
+                        previousInactiveDuration = Duration.ZERO;
+                        sessionInactiveTime = Duration.ZERO;
+                        lastActiveTime = LocalDateTime.now(); // Set the last active time to now to resume tracking
+
+                        logger.info("3 hours of continuous inactivity detected. Data saved and reset.");
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Error during inactivity check: ", e);
+        }
+    }
+
+
+    private static void resetInactivityTimer() {
+        try {
+            if (!popupDisplayed) { // Ignore interactions during popup
+                if (isInactive) {
+                    // Resume active time
+                    isInactive = false;
+
+                    // Reset inactivity tracking
+                    previousInactiveDuration = Duration.ZERO;
+                    sessionInactiveTime = Duration.ZERO;
+                    lastActiveTime = LocalDateTime.now(); // Update last active time to now
+                }
+
+                // Restart inactivity timer
+                inactivityTimer.cancel();
+                inactivityTimer = new Timer(true);
+                inactivityTimer.schedule(new TimerTask() {
+                    @Override
+                    public void run() {
+                        try {
+                            isInactive = true;
+                            showInactivityPopup();
+                            logger.info("Inactivity timer reset and popup shown.");
+                        } catch (Exception e) {
+                            logger.error("Error during inactivity timer reset: ", e);
+                        }
+                    }
+                }, 240000); // 5 minute inactivity threshold
+                logger.info("Inactivity timer reset.");
+            }
+        } catch (Exception e) {
+            logger.error("Error resetting inactivity timer: ", e);
+        }
+    }
+
+    private static void showInactivityPopup() {
+        ZonedDateTime loginTimeUTC = loginTime.atZone(ZoneId.systemDefault()).withZoneSameInstant(ZoneOffset.UTC);
+
+        if (isPopupDisplayed) {
+            return;
+        }
+
+//        popupDisplayed = true;
+        isPopupDisplayed = true; // Set flag to true when popup is displayed
+        popupStartTime = LocalDateTime.now(); // Capture the start time when the popup appears
+        if (isPopupDisplayed) {
+            // Save the session between last saved time and popup start
+            if (popupStartTime != null && popupStartTime.isAfter(loginTime)) {
+                ZonedDateTime popupStartTimeUTC = popupStartTime.atZone(ZoneId.systemDefault()).withZoneSameInstant(ZoneOffset.UTC);
+
+                // Calculate the active period before the popup
+                if (loginTimeUTC.toLocalDateTime().isBefore(popupStartTimeUTC.toLocalDateTime())) {
+                    // Save the active session
+                    saveActiveSession(loginTimeUTC.toLocalDateTime(), popupStartTimeUTC.toLocalDateTime());
+                    logger.info("Active data saved from {} to {} before popup was displayed.", loginTimeUTC, popupStartTimeUTC);
+                }
+            }
+        }
+
+        String username = System.getProperty("user.name");
+        LocalDateTime startTime = LocalDateTime.now(); // Capture start time when popup appears
+
+        SwingUtilities.invokeLater(() -> {
+            String[] options = {"Break", "Global Meeting", "Client Meeting", "Stand-Up Meeting", "Clarification - Supervisor", "Client System Downtime", "Internal System Downtime", "HR Fun Event", "Other - Description"};
+
+            // Create components for input
+            JComboBox<String> optionsComboBox = new JComboBox<>(options);
+            JTextArea descriptionArea = new JTextArea(6, 30); // Increased rows and columns for description
+            descriptionArea.setLineWrap(true);
+            descriptionArea.setWrapStyleWord(true);
+
+            // Load and resize logo image
+            ImageIcon originalIcon = new ImageIcon("PMS.jpg");
+            Image originalImage = originalIcon.getImage();
+            Image scaledImage = originalImage.getScaledInstance(400, 100, Image.SCALE_SMOOTH); // Resize to 100x60 pixels
+            ImageIcon scaledIcon = new ImageIcon(scaledImage);
+
+            JLabel logoLabel = new JLabel(scaledIcon); // Use the scaled logo image
+            JLabel reasonLabel = new JLabel("Minutes of Inactivity:");
+            reasonLabel.setForeground(Color.BLACK);
+            JLabel descriptionLabel = new JLabel("Additional Description (if applicable):");
+            descriptionLabel.setForeground(Color.BLACK);
+
+            // Timer label
+            JLabel timerLabel = new JLabel("00:00:00");
+            timerLabel.setForeground(Color.BLACK);
+
+            // Timer setup using java.util.Timer
+            Timer timer = new Timer();
+            TimerTask timerTask = new TimerTask() {
+                private long elapsedSeconds = 00;
+                private final long FOUR_HOURS_IN_SECONDS = 4 * 3600; // 4 hours in seconds
+
+                @Override
+                public void run() {
+                    elapsedSeconds++;
+                    long hours = elapsedSeconds / 3600;
+                    long minutes = (elapsedSeconds % 3600) / 60;
+                    long seconds = elapsedSeconds % 60;
+
+                    // Update the timer label on the Event Dispatch Thread (EDT)
+                    SwingUtilities.invokeLater(() -> timerLabel.setText(String.format("%02d:%02d:%02d", hours, minutes, seconds)));
+
+                    // Check if the timer has reached 4 hours
+                    if (elapsedSeconds >= FOUR_HOURS_IN_SECONDS) {
+                        this.cancel(); // Stop the TimerTask
+                        timer.cancel(); // Stop the Timer
+                    }
+                }
+            };
+            timer.scheduleAtFixedRate(timerTask, 0, 1000); // Update every second
+
+            // Create panel for input components and add them
+            JPanel inputPanel = new JPanel(new GridBagLayout());
+            inputPanel.setBackground(Color.WHITE);
+
+            GridBagConstraints gbc = new GridBagConstraints();
+            gbc.insets = new Insets(10, 10, 10, 10);
+            gbc.anchor = GridBagConstraints.CENTER;
+
+            // Add logo centered
+            gbc.gridx = 0;
+            gbc.gridy = 0;
+            gbc.gridwidth = GridBagConstraints.REMAINDER; // Span entire row
+            inputPanel.add(logoLabel, gbc);
+
+            // Add reasonLabel centered on the next line
+            gbc.gridy++;
+            inputPanel.add(reasonLabel, gbc);
+
+            // Add timerLabel next to reasonLabel on the same line
+            JPanel reasonAndTimerPanel = new JPanel();
+            reasonAndTimerPanel.setBackground(Color.WHITE);
+            reasonAndTimerPanel.setLayout(new BoxLayout(reasonAndTimerPanel, BoxLayout.X_AXIS));
+            reasonAndTimerPanel.add(reasonLabel);
+            reasonAndTimerPanel.add(Box.createHorizontalStrut(10)); // Spacer
+            reasonAndTimerPanel.add(timerLabel);
+
+            gbc.gridy++;
+            gbc.gridwidth = GridBagConstraints.REMAINDER; // Span entire row
+            inputPanel.add(reasonAndTimerPanel, gbc);
+
+            // Continue with the rest of the components
+            gbc.gridwidth = 2;
+            gbc.gridx = 0;
+            gbc.gridy++;
+            inputPanel.add(optionsComboBox, gbc);
+
+            gbc.gridy++;
+            inputPanel.add(descriptionLabel, gbc);
+
+            gbc.gridy++;
+            gbc.fill = GridBagConstraints.BOTH;
+            inputPanel.add(new JScrollPane(descriptionArea), gbc);
+
+            gbc.gridy++;
+            gbc.fill = GridBagConstraints.NONE;
+            gbc.weighty = 0.0; // Ensure no extra vertical space is taken
+
+            // Create OK button
+            JButton okButton = new JButton("OK");
+            okButton.addActionListener(e -> {
+                LocalDateTime endTime = LocalDateTime.now(); // Capture end time when user selects reason
+
+                String selectedReason = (String) optionsComboBox.getSelectedItem();
+                String description = descriptionArea.getText().trim();
+
+                if (selectedReason == null || selectedReason.isEmpty() || (selectedReason.equals("Other - Description") && description.isEmpty())) {
+                    JOptionPane.showMessageDialog(inputPanel, "Please select a reason and provide a description if applicable.", "Selection Required", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                // Calculate duration in seconds
+
+                long durationSeconds = Duration.between(startTime, endTime).getSeconds();
+                durationSeconds += 240;
+
+
+
+                // Check if the user took more than 4 hours to provide a reason (4 hours = 14,400 seconds)
+                if (durationSeconds > 14400) {
+                    JOptionPane.showMessageDialog(inputPanel, "Your session has detected inactivity for longer duration. Please remember to sign out when you have finished using the system for the day.", "Time Exceeded", JOptionPane.WARNING_MESSAGE);
+                }
+
+                // If the user selected "Break", add the duration to the totalBreakTime
+                if (selectedReason.equals("Break")) {
+                    totalBreakTime = totalBreakTime.plusSeconds(durationSeconds);
+                }
+
+
+                // Update additional fields based on selected reason
+                String empName = username; // Replace with actual employee name or fetch dynamically
+                String totalIdleHours = "";
+                String totalProductiveHours = "";
+                String totalMeeting = "";
+                int totalBreaks = 0;
+                String totalDowntime = "";
+
+                if (selectedReason.equals("Break") || selectedReason.equals("HR Fun Event") || selectedReason.startsWith("Other")) {
+                    totalIdleHours = selectedReason;
+                } else if (selectedReason.equals("Stand-Up Meeting") || selectedReason.equals("Global Meeting") || selectedReason.equals("Client Meeting") || selectedReason.equals("Clarification - Supervisor")) {
+                    totalProductiveHours = selectedReason;
+                } else if (selectedReason.equals("Client System Downtime") || selectedReason.equals("Internal System Downtime")) {
+                    totalDowntime = selectedReason;
+                } else {
+                    totalMeeting = selectedReason;
+                }
+
+                // Save the inactivity reason and descripti on to the database
+                saveInactivityReason(selectedReason, description, startTime, endTime, empName, durationSeconds, selectedReason, totalIdleHours, totalProductiveHours, totalMeeting, totalBreaks, totalDowntime, systemName);
+                isPopupDisplayed = false; // Reset flag when popup is closed
+                // Stop the timer
+                timer.cancel();
+                // Check if popup was displayed for more than 5 minutes
+                if (Duration.between(popupStartTime, endTime).toMinutes() > 180) {
+                    sessionStartTime = endTime; // Reset session start time to current time
+                    totalBreakTime = Duration.ZERO; // Reset total break time to zero
+
+                }
+                isPopupDisplayed = false; // Reset flag when popup is closed
+
+                // Close the dialog after successful input
+                Window window = SwingUtilities.windowForComponent(inputPanel);
+                if (window != null) {
+                    window.dispose();
+                }
+
+                // Reset popup display flag and login time
+                popupDisplayed = false;
+                loginTime = LocalDateTime.now(); // Set new login time to current time after popup closes
+
+                // Resume active time
+                isInactive = false;
+                resetInactivityTimer(); // Restart inactivity timer
+            });
+
+            gbc.gridy++;
+            inputPanel.add(okButton, gbc); // Add the OK button below the description area
+
+            // Create and configure the dialog
+            JDialog dialog = new JDialog((Frame) null, "Inactive Session", true); // Use a JDialog to block interactions with other windows
+
+            // Set the icon for the dialog
+            ImageIcon dialogIcon = new ImageIcon("PMS.jpg"); // Adjust the file path as needed
+            dialog.setIconImage(dialogIcon.getImage());
+
+            // Add WindowListener to stop the timer when dialog is closed
+            dialog.addWindowListener(new WindowAdapter() {
+                @Override
+                public void windowClosing(WindowEvent e) {
+                    // Stop the timer when dialog is closed
+                    timer.cancel();
+                }
+            });
+
+            // Ensure dialog remains in focus
+            dialog.addWindowFocusListener(new WindowAdapter() {
+                @Override
+                public void windowLostFocus(WindowEvent e) {
+                    dialog.requestFocus();
+                }
+            });
+            // Get primary screen size using Toolkit
+//            Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+
+            GraphicsDevice[] devices = GraphicsEnvironment.getLocalGraphicsEnvironment().getScreenDevices();
+            int numberOfScreens = devices.length;
+
+// Store references to all dialogs
+            JDialog[] dialogs = new JDialog[numberOfScreens];
+
+// Create and display the popup on multiple screens
+            for (int i = 0; i < numberOfScreens; i++) {
+                // Create a new dialog for each screen
+                dialogs[i] = new JDialog();  // Store each dialog in the array
+
+                // Remove window decorations
+                dialogs[i].setUndecorated(true);
+                dialogs[i].setResizable(false);
+
+                if (i == 0) { // For the main screen
+                    // Add your existing input panel
+                    dialogs[i].getContentPane().add(inputPanel, BorderLayout.CENTER);
+
+                    // Create OK button (assuming this is already defined in your actual code)
+//                    JButton okButton = new JButton("OK");
+                    okButton.addActionListener(e -> {
+                        // Close the dialog after successful input
+                        Window window = SwingUtilities.windowForComponent(inputPanel);
+                        if (window != null) {
+                            window.dispose(); // Close the current dialog
+                        }
+
+                        // Close all other dialogs when the main dialog is closed
+                        for (JDialog d : dialogs) {
+                            if (d != null && d != window && d.isVisible()) {
+                                d.dispose(); // Close the other popups
+                            }
+                        }
+                    });
+
+                    // Add the OK button to the input panel or wherever appropriate
+//                    inputPanel.add(okButton); // Ensure the OK button is added to the inputPanel
+
+                } else { // For secondary screens (dummy popups)
+                    JPanel dummyPanel = new JPanel();
+                    dummyPanel.add(new JLabel("This is a inactive popup on Screen " + (i + 1))); // Example content
+                    dialogs[i].getContentPane().add(dummyPanel, BorderLayout.CENTER);
+                }
+
+                dialogs[i].pack();
+
+                // Always on top and full-screen configuration
+                dialogs[i].setAlwaysOnTop(true);
+                Rectangle screenBounds = devices[i].getDefaultConfiguration().getBounds();
+                dialogs[i].setBounds(screenBounds.x, screenBounds.y, screenBounds.width, screenBounds.height);
+
+                // Show the dialog
+                dialogs[i].setVisible(true);
+            }
+
+// To handle closing all dialogs when the main dialog is closed
+            dialogs[0].addWindowListener(new WindowAdapter() {
+                @Override
+                public void windowClosing(WindowEvent e) {
+                    // Close all dialogs when the main dialog is closed
+                    for (JDialog dialog : dialogs) {
+                        if (dialog != null && dialog.isVisible()) {
+                            dialog.dispose(); // Dispose of the dialog
+                        }
+                    }
+                }
+            });
+
+        });
+    }
+
+    private static void saveInactivityReason(String reason, String description, LocalDateTime startTime, LocalDateTime endTime, String empName, long durationMinutes, String category, String totalIdleHours, String totalProductiveHours, String totalMeeting, int totalBreaks, String totalDowntime, String systemName) {
+        String jdbcURL = DatabaseConfig.getDbUrl();  // Get DB URL from DatabaseConfig
+        String dbUser = DatabaseConfig.getDbUser();  // Get DB User from DatabaseConfig
+        String dbPassword = DatabaseConfig.getDbPassword();  // Get DB Password from DatabaseConfig
+
+        String username = System.getProperty("user.name");
+
+        // Check if reason or category is empty, and skip storing if either is empty
+        if (reason == null || reason.isEmpty() || category == null || category.isEmpty()) {
+            System.out.println("Reason or category is empty. Data will not be stored.");
+            return; // Exit the method without storing data
+        }
+
+        // Convert startTime and endTime to UTC
+        ZonedDateTime startTimeUTC = startTime.atZone(ZoneId.systemDefault()).withZoneSameInstant(ZoneOffset.UTC);
+        ZonedDateTime endTimeUTC = endTime.atZone(ZoneId.systemDefault()).withZoneSameInstant(ZoneOffset.UTC);
+
+        long durationSeconds = java.time.Duration.between(startTime, endTime).getSeconds();
+
+        // Add default 4 minutes (240 seconds) to duration
+//        durationSeconds += 240;
+
+        // Check if the duration exceeds 4 hours (14400 seconds)
+        if (durationSeconds > 14400) {
+            System.out.println("Inactivity duration exceeds 4 hours. Data will not be stored.");
+            return; // Exit the method without storing data
+        }
+
+        durationMinutes = durationSeconds / 60; // Calculate minutes from seconds
+
+        // Get the current date
+        LocalDate currentDate = LocalDate.now();
+
+        // SQL query with the new system_name column
+        String sql = "INSERT INTO inactivity_log (date, username, reason, description, start_time, end_time, duration_minutes, category, total_idel_hours, total_productive_hours, total_meeting, total_breaks, total_downtime, duration_seconds, system_name) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+        try (Connection connection = DriverManager.getConnection(jdbcURL, dbUser, dbPassword);
+             PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+
+            statement.setDate(1, Date.valueOf(currentDate)); // Set the date parameter
+            statement.setString(2, username);
+            statement.setString(3, reason);
+            statement.setString(4, description);
+            statement.setTimestamp(5, Timestamp.valueOf(startTimeUTC.toLocalDateTime()));
+            statement.setTimestamp(6, Timestamp.valueOf(endTimeUTC.toLocalDateTime()));
+            statement.setLong(7, durationMinutes);
+            statement.setString(8, category);
+            statement.setString(9, totalIdleHours);
+            statement.setString(10, totalProductiveHours);
+            statement.setString(11, totalMeeting);
+            statement.setInt(12, totalBreaks);
+            statement.setString(13, totalDowntime);
+            statement.setLong(14, durationSeconds); // Duration in seconds
+            statement.setString(15, systemName); // Set the system name
+
+            int rowsInserted = statement.executeUpdate();
+
+            if (rowsInserted > 0) {
+                System.out.println("Inactivity reason and description inserted successfully.");
+
+                // Retrieve the generated ID if needed
+                try (ResultSet generatedKeys = statement.getGeneratedKeys()) {
+                    if (generatedKeys.next()) {
+                        int id = generatedKeys.getInt(1); // Retrieve the auto-generated ID
+                        System.out.println("Generated ID: " + id);
+                    }
+                } catch (SQLException e) {
+                    System.err.println("Error retrieving generated keys: " + e.getMessage());
+                }
+            }
+
+        } catch (SQLException e) {
+            // Log the SQLException with a clear error message and include the stack trace
+            logger.error("Database connection error: {}", e.getMessage(), e);
+        }
+    }
+
+    private static void updateActiveAndInactiveTime() {
+        if (isLoggedIn) {
+            LocalDateTime now = LocalDateTime.now();
+            Duration elapsedTime = Duration.between(lastActiveTime, now);
+
+            if (isInactive) {
+                sessionInactiveTime = sessionInactiveTime.plus(elapsedTime);
+            } else {
+                sessionActiveTime = sessionActiveTime.plus(elapsedTime);
+            }
+
+            lastActiveTime = now; // Update last active time to current time
+        }
+    }
+
+    private static void saveActiveSession(LocalDateTime loginTime, LocalDateTime logoutTime) {
+        String jdbcURL = DatabaseConfig.getDbUrl();  // Get DB URL from DatabaseConfig
+        String dbUser = DatabaseConfig.getDbUser();  // Get DB User from DatabaseConfig
+        String dbPassword = DatabaseConfig.getDbPassword();  // Get DB Password from DatabaseConfig
+
+        String username = System.getProperty("user.name");
+
+        if (loginTime.equals(logoutTime)) {
+            System.out.println("Login and logout times are the same. Skipping data insertion.");
+            return;  // Skip inserting the data
+        }
+
+        System.out.println("Session saved from " + loginTime + " to " + logoutTime);
+
+        ZonedDateTime loginTimeUTC = loginTime.atZone(ZoneId.systemDefault()).withZoneSameInstant(ZoneOffset.UTC);
+        ZonedDateTime logoutTimeUTC = logoutTime.atZone(ZoneId.systemDefault()).withZoneSameInstant(ZoneOffset.UTC);
+
+        LocalDate currentDate = LocalDate.now();
+
+        Duration totalDuration = Duration.between(loginTime, logoutTime);
+        if (totalDuration.isZero()) {
+            System.out.println("Total duration is zero. Skipping data insertion.");
+            return;
+        }
+
+        long totalSeconds = totalDuration.getSeconds();
+        long totalMinutes = totalSeconds / 60;
+        totalSeconds %= 60;
+        long totalHours = totalMinutes / 60;
+        totalMinutes %= 60;
+
+        if (totalHours > 0 || totalMinutes > 15 || (totalMinutes == 0 && totalSeconds == 0)) {
+            System.out.println("Total duration is more than 15 minutes or has hours. Skipping data insertion.");
+            return;
+        }
+
+        long activeSeconds = totalDuration.getSeconds();
+        long activeMinutes = activeSeconds / 60;
+        activeSeconds %= 60;
+        long activeHours = activeMinutes / 60;
+        activeMinutes %= 60;
+
+        long inactiveSeconds = sessionInactiveTime.getSeconds();
+        long inactiveMinutes = inactiveSeconds / 60;
+        inactiveSeconds %= 60;
+        long inactiveHours = inactiveMinutes / 60;
+        inactiveMinutes %= 60;
+
+
+        if (activeMinutes == 0 && activeSeconds == 0) {
+            System.out.println("Active duration is zero. Skipping data insertion.");
+            return;
+        }
+        String versionFilePath = "C:\\PMS\\version.txt";
+        String version = "";
+
+        File versionFile = new File(versionFilePath);
+
+
+
+        if (!versionFile.exists()) {
+            try {
+                // Load the version from the properties file
+                Properties propertie = new Properties();
+                try (FileInputStream fis = new FileInputStream("config.properties")) {
+                    propertie.load(fis);
+                    version = propertie.getProperty("app.version"); // Read version from properties
+                }
+
+                // Check if the version was loaded successfully
+                if (version == null) {
+                    System.err.println("Version not found in properties file.");
+                    return; // Exit if version is not found
+                }
+
+                // Write the version to the version file
+                try (BufferedWriter writer = new BufferedWriter(new FileWriter(versionFile))) {
+                    writer.write(version); // Write the version
+                    System.out.println("Version file not found, created new file with version: " + version);
+                }
+            } catch (IOException e) {
+                System.err.println("Error creating version file: " + e.getMessage());
+            }
+        }else {
+            try (BufferedReader reader = new BufferedReader(new FileReader(versionFile))) {
+                version = reader.readLine(); // Assuming the version is on the first line
+                System.out.println("Version read from file: " + version);
+            } catch (IOException e) {
+                System.err.println("Error reading version file: " + e.getMessage());
+            }
+        }
+
+        try (Connection connection = DriverManager.getConnection(jdbcURL, dbUser, dbPassword)) {
+            String sql = "INSERT INTO active_sessions (date, username, login_time, logout_time, system_name, version, total_duration_hours, total_duration_minutes, total_duration_seconds, total_active_time_hours, total_active_time_minutes, total_active_time_seconds, total_inactive_time_hours, total_inactive_time_minutes, total_inactive_time_seconds, lock_count, total_duration_in_seconds, total_active_duration_in_seconds, total_inactive_duration_in_seconds) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+            PreparedStatement statement = connection.prepareStatement(sql);
+
+            statement.setDate(1, Date.valueOf(currentDate));
+            statement.setString(2, username);
+            statement.setTimestamp(3, Timestamp.from(loginTimeUTC.toInstant()));
+            statement.setTimestamp(4, Timestamp.from(logoutTimeUTC.toInstant()));
+            statement.setString(5, systemName);
+            statement.setString(6, version); // Set the version
+
+            statement.setLong(7, totalHours);
+            statement.setLong(8, totalMinutes);
+            statement.setLong(9, totalSeconds);
+            statement.setLong(10, activeHours);
+            statement.setLong(11, activeMinutes);
+            statement.setLong(12, activeSeconds);
+            statement.setLong(13, inactiveHours);
+            statement.setLong(14, inactiveMinutes);
+            statement.setLong(15, inactiveSeconds);
+            statement.setInt(16, lockCount);
+            statement.setLong(17, totalDuration.getSeconds());
+            statement.setLong(18, totalDuration.getSeconds());
+            statement.setLong(19, sessionInactiveTime.getSeconds());
+
+            statement.executeUpdate();
+
+            System.out.println("Data inserted successfully.");
+        } catch (SQLException e) {
+            logger.error("Database connection error: {}", e.getMessage(), e);  // Log the error message and stack trace
+        }
+    }
+
+    // This connection is asking idel permission reason.
+    private static void savepopupReason(String reason, String description, LocalDateTime startTime, LocalDateTime endTime, String empName, long durationMinutes, String category, String totalIdleHours, String totalProductiveHours, String totalMeeting, int totalBreaks, String totalDowntime, String systemName) {
+        String jdbcURL = DatabaseConfig.getDbUrl();  // Get DB URL from DatabaseConfig
+        String dbUser = DatabaseConfig.getDbUser();  // Get DB User from DatabaseConfig
+        String dbPassword = DatabaseConfig.getDbPassword();  // Get DB Password from DatabaseConfig
+
+        String username = System.getProperty("user.name");
+
+        // Convert startTime and endTime to UTC
+        ZonedDateTime startTimeUTC = startTime.atZone(ZoneId.systemDefault()).withZoneSameInstant(ZoneOffset.UTC);
+        ZonedDateTime endTimeUTC = endTime.atZone(ZoneId.systemDefault()).withZoneSameInstant(ZoneOffset.UTC);
+
+        long durationSeconds = java.time.Duration.between(startTime, endTime).getSeconds();
+
+        // Add default 4 minutes (240 seconds) to duration
+//        durationSeconds += 240;
+
+        // Check if the duration exceeds 4 hours (14400 seconds)
+        if (durationSeconds > 14400) {
+            System.out.println("Inactivity duration exceeds 4 hours. Data will not be stored.");
+            return; // Exit the method without storing data
+        }
+
+        durationMinutes = durationSeconds / 60; // Calculate minutes from seconds
+
+        // Get the current date
+        LocalDate currentDate = LocalDate.now();
+
+        // SQL query with the new system_name column
+        String sql = "INSERT INTO inactive (date, username, reason, description, start_time, end_time, duration_minutes, category, total_idel_hours, total_productive_hours, total_meeting, total_breaks, total_downtime, duration_seconds, system_name) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+        try (Connection connection = DriverManager.getConnection(jdbcURL, dbUser, dbPassword);
+             PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+
+            statement.setDate(1, Date.valueOf(currentDate)); // Set the date parameter
+            statement.setString(2, username);
+            statement.setString(3, reason);
+            statement.setString(4, description);
+            statement.setTimestamp(5, Timestamp.valueOf(startTimeUTC.toLocalDateTime()));
+            statement.setTimestamp(6, Timestamp.valueOf(endTimeUTC.toLocalDateTime()));
+            statement.setLong(7, durationMinutes);
+            statement.setString(8, category);
+            statement.setString(9, totalIdleHours);
+            statement.setString(10, totalProductiveHours);
+            statement.setString(11, totalMeeting);
+            statement.setInt(12, totalBreaks);
+            statement.setString(13, totalDowntime);
+            statement.setLong(14, durationSeconds); // Duration in seconds
+            statement.setString(15, systemName); // Set the system name
+
+            int rowsInserted = statement.executeUpdate();
+
+            if (rowsInserted > 0) {
+                System.out.println("Inactivity reason and description inserted successfully.");
+
+                // Retrieve the generated ID if needed
+                try (ResultSet generatedKeys = statement.getGeneratedKeys()) {
+                    if (generatedKeys.next()) {
+                        int id = generatedKeys.getInt(1); // Retrieve the auto-generated ID
+                        System.out.println("Generated ID: " + id);
+                    }
+                } catch (SQLException e) {
+                    System.err.println("Error retrieving generated keys: " + e.getMessage());
+                }
+            }
+
+        } catch (SQLException e) {
+            logger.error("SQL error occurred: {}", e.getMessage(), e);  // Log both the error message and the stack trace
+        }
+    }
+
+    private static class BrowserHistoryTracker implements Runnable {
+        private static final String USERNAME = System.getProperty("user.name");
+        private static final Logger logger = LogManager.getLogger(BrowserHistoryTracker.class);
+
+
+        @Override
+        public void run() {
+            try {
+                trackBrowserHistory();
+            } catch (Exception e) {
+                logger.error("Unexpected error: {}", e.getMessage(), e);
+            } finally {
+                logger.info("Browser history tracking thread is exiting.");
+            }
+        }
+
+        private void trackBrowserHistory() {
+            logger.info("Starting BrowserHistoryTracker...");
+
+            while (true) {
+                logger.info("Entering main loop...");
+
+                try {
+                    String firefoxProfilePath = getFirefoxProfilePath();
+                    String chromeHistoryPath = getChromeHistoryPath();
+                    String edgeHistoryPath = getEdgeHistoryPath();
+
+                    logger.info("Firefox Profile Path: {}", firefoxProfilePath);
+                    logger.info("Chrome History Path: {}", chromeHistoryPath);
+                    logger.info("Edge History Path: {}", edgeHistoryPath);
+
+                    if (firefoxProfilePath != null && isBrowserRunning("firefox.exe")) {
+                        try {
+                            UrlVisit firefoxUrl = getCurrentFirefoxUrl(firefoxProfilePath);
+                            if (firefoxUrl != null) {
+                                firefoxUrl.setStatus("Using");
+                                if (!firefoxUrl.equals(lastUrlVisit)) {
+                                    logger.info("Current Firefox URL: {}: {}", firefoxUrl.getVisitTime(), firefoxUrl.getUrl());
+                                    saveUrlVisitToDatabase(firefoxUrl, "jdbc:mysql://pmsglobal.cve060ce6je3.us-east-1.rds.amazonaws.com:3306/PMS_PRO", "admin", "wfxicVdxG71bJvdVhFN2");
+                                    lastUrlVisit = firefoxUrl;
+                                }
+                            }
+                        } catch (IOException | SQLException e) {
+                            logger.error("Exception occurred while tracking Firefox URL: {}", e.getMessage(), e);
+                        }
+                    } else {
+                        if (lastUrlVisit != null && "Using".equals(lastUrlVisit.getStatus())) {
+                            lastUrlVisit.setStatus("Closed");
+                            saveUrlVisitToDatabase(lastUrlVisit, "jdbc:mysql://pmsglobal.cve060ce6je3.us-east-1.rds.amazonaws.com:3306/PMS_PRO", "admin", "wfxicVdxG71bJvdVhFN2");
+                            lastUrlVisit = null;
+                        }
+                        logger.info("Firefox browser is closed or profile path is null.");
+                    }
+
+                    if (chromeHistoryPath != null && isBrowserRunning("chrome.exe")) {
+                        try {
+                            UrlVisit chromeUrl = getCurrentChromeUrl(chromeHistoryPath);
+                            if (chromeUrl != null) {
+                                chromeUrl.setStatus("Using");
+                                if (!chromeUrl.equals(lastUrlVisit)) {
+                                    logger.info("Current Chrome URL: {}: {}", chromeUrl.getVisitTime(), chromeUrl.getUrl());
+                                    saveUrlVisitToDatabase(chromeUrl, "jdbc:mysql://pmsglobal.cve060ce6je3.us-east-1.rds.amazonaws.com:3306/PMS_PRO", "admin", "wfxicVdxG71bJvdVhFN2");
+                                    lastUrlVisit = chromeUrl;
+                                }
+                            }
+                        } catch (IOException | SQLException e) {
+                            logger.error("Exception occurred while tracking Chrome URL: {}", e.getMessage(), e);
+                        }
+                    } else {
+                        if (lastUrlVisit != null && "Using".equals(lastUrlVisit.getStatus())) {
+                            lastUrlVisit.setStatus("Closed");
+                            saveUrlVisitToDatabase(lastUrlVisit, "jdbc:mysql://pmsglobal.cve060ce6je3.us-east-1.rds.amazonaws.com:3306/PMS_PRO", "admin", "wfxicVdxG71bJvdVhFN2");
+                            lastUrlVisit = null;
+                        }
+                        logger.info("Chrome browser is closed or history path is null.");
+                    }
+
+                    if (edgeHistoryPath != null && isBrowserRunning("msedge.exe")) {
+                        try {
+                            UrlVisit edgeUrl = getCurrentEdgeUrl(edgeHistoryPath);
+                            if (edgeUrl != null) {
+                                edgeUrl.setStatus("Using");
+                                if (!edgeUrl.equals(lastUrlVisit)) {
+                                    logger.info("Current Edge URL: {}: {}", edgeUrl.getVisitTime(), edgeUrl.getUrl());
+                                    saveUrlVisitToDatabase(edgeUrl, "jdbc:mysql://pmsglobal.cve060ce6je3.us-east-1.rds.amazonaws.com:3306/PMS_PRO", "admin", "wfxicVdxG71bJvdVhFN2");
+                                    lastUrlVisit = edgeUrl;
+                                }
+                            }
+                        } catch (IOException | SQLException e) {
+                            logger.error("Exception occurred while tracking Edge URL: {}", e.getMessage(), e);
+                        }
+                    } else {
+                        if (lastUrlVisit != null && "Using".equals(lastUrlVisit.getStatus())) {
+                            lastUrlVisit.setStatus("Closed");
+                            saveUrlVisitToDatabase(lastUrlVisit, "jdbc:mysql://pmsglobal.cve060ce6je3.us-east-1.rds.amazonaws.com:3306/PMS_PRO", "admin", "wfxicVdxG71bJvdVhFN2");
+                            lastUrlVisit = null;
+                        }
+                        logger.info("Edge browser is closed or history path is null.");
+                    }
+
+                } catch (Exception e) {
+                    logger.error("Exception occurred: ", e);
+                }
+
+                try {
+                    Thread.sleep(CHECK_INTERVAL_MS);
+                } catch (InterruptedException e) {
+                    logger.error("Sleep was interrupted: {}", e.getMessage(), e);
+                    Thread.currentThread().interrupt(); // Restore interrupt status
+                    break; // Exit the loop if interrupted
+                }
+            }
+        }
+
+
+        private static boolean isBrowserRunning(String processName) {
+            StringBuilder pidInfo = new StringBuilder();
+            File workingDirectory = new File("C:\\Windows\\System32");
+            ProcessBuilder processBuilder = new ProcessBuilder("tasklist.exe");
+
+            processBuilder.directory(workingDirectory);
+
+            logger.info("Starting process: tasklist.exe");
+            logger.info("Working directory: {}", processBuilder.directory().getAbsolutePath());
+
+            try {
+                Process process = processBuilder.start();
+
+                BufferedReader outputReader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+                BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+
+                String line;
+                while ((line = outputReader.readLine()) != null) {
+                    pidInfo.append(line).append(System.lineSeparator());
+                }
+
+                StringBuilder errorInfo = new StringBuilder();
+                while ((line = errorReader.readLine()) != null) {
+                    errorInfo.append(line).append(System.lineSeparator());
+                }
+
+                int exitCode = process.waitFor();
+                logger.info("Tasklist Output:\n{}", pidInfo.toString());
+                if (errorInfo.length() > 0) {
+                    logger.error("Tasklist Errors:\n{}", errorInfo.toString());
+                }
+                logger.info("Process exited with code: {}", exitCode);
+
+                return pidInfo.toString().contains(processName);
+
+            } catch (IOException e) {
+                logger.error("Failed to start tasklist process: {}", e.getMessage(), e);
+            } catch (InterruptedException e) {
+                logger.error("Tasklist process interrupted: {}", e.getMessage(), e);
+                Thread.currentThread().interrupt();
+            }
+            return false;
+        }
+
+        private static String getFirefoxProfilePath() {
+            String userHome = System.getProperty("user.home");
+            File profilesDir = new File(userHome + File.separator + "AppData" + File.separator + "Roaming" + File.separator + "Mozilla" + File.separator + "Firefox" + File.separator + "Profiles");
+
+            if (!profilesDir.exists() || !profilesDir.isDirectory()) {
+                logger.info("Firefox profiles directory not found.");
+                return null;
+            }
+
+            File[] profileDirs = profilesDir.listFiles(File::isDirectory);
+            if (profileDirs != null) {
+                for (File profileDir : profileDirs) {
+                    File historyFile = new File(profileDir, "places.sqlite");
+                    if (historyFile.exists()) {
+                        return profileDir.getAbsolutePath();
+                    }
+                }
+            }
+            logger.info("No Firefox profile with places.sqlite found.");
+            return null;
+        }
+
+        private static String getChromeHistoryPath() {
+            String userHome = System.getProperty("user.home");
+            File userDataDir = new File(userHome + File.separator + "AppData" + File.separator + "Local" + File.separator + "Google" + File.separator + "Chrome" + File.separator + "User Data");
+
+            if (!userDataDir.exists() || !userDataDir.isDirectory()) {
+                logger.info("Chrome user data directory not found.");
+                return null;
+            }
+
+            File[] profileDirs = userDataDir.listFiles(File::isDirectory);
+            if (profileDirs != null) {
+                for (File profileDir : profileDirs) {
+                    if (profileDir.getName().startsWith("Profile") || profileDir.getName().equals("Default")) {
+                        File historyFile = new File(profileDir, "History");
+                        if (historyFile.exists()) {
+                            return historyFile.getAbsolutePath();
+                        }
+                    }
+                }
+            }
+            logger.info("No Chrome profile with History file found.");
+            return null;
+        }
+
+        private static String getEdgeHistoryPath() {
+            String userHome = System.getProperty("user.home");
+            File userDataDir = new File(userHome + File.separator + "AppData" + File.separator + "Local" + File.separator + "Microsoft" + File.separator + "Edge" + File.separator + "User Data");
+
+            if (!userDataDir.exists() || !userDataDir.isDirectory()) {
+                logger.info("Edge user data directory not found.");
+                return null;
+            }
+
+            File[] profileDirs = userDataDir.listFiles(File::isDirectory);
+            if (profileDirs != null) {
+                for (File profileDir : profileDirs) {
+                    if (profileDir.getName().startsWith("Profile") || profileDir.getName().equals("Default")) {
+                        File historyFile = new File(profileDir, "History");
+                        if (historyFile.exists()) {
+                            return historyFile.getAbsolutePath();
+                        }
+                    }
+                }
+            }
+            logger.info("No Edge profile with History file found.");
+            return null;
+        }
+
+        public static UrlVisit getCurrentFirefoxUrl(String firefoxProfilePath) throws IOException, SQLException {
+            File historyFile = new File(firefoxProfilePath, "places.sqlite");
+            if (!historyFile.exists()) {
+                logger.info("Firefox history file not found.");
+                return null;
+            }
+
+            // DateTimeFormatter for the expected format
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+            try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + historyFile.getAbsolutePath());
+                 Statement stmt = connection.createStatement();
+                 ResultSet rs = stmt.executeQuery("SELECT url, datetime(visit_date/1000000, 'unixepoch') AS visit_time FROM moz_places JOIN moz_historyvisits ON moz_places.id = moz_historyvisits.place_id ORDER BY visit_time DESC LIMIT 1")) {
+
+                if (rs.next()) {
+                    String url = rs.getString("url");
+                    String visitTimeStr = rs.getString("visit_time");
+
+                    // Handle potential null or empty values
+                    if (url == null || visitTimeStr == null) {
+                        logger.info("URL or visit time is null.");
+                        return null;
+                    }
+
+                    // Parse visit time using formatter
+                    LocalDateTime visitTime;
+                    try {
+                        visitTime = LocalDateTime.parse(visitTimeStr, formatter);
+                    } catch (DateTimeParseException e) {
+                        logger.error("DateTime parsing error: {}", e.getMessage(), e);
+                        return null;
+                    }
+
+                    String status = "Using"; // or determine the status based on your logic
+
+                    return new UrlVisit(url, visitTime, status);
+                }
+            } catch (SQLException e) {
+                logger.error("Error querying Firefox history: {}", e.getMessage(), e);
+            }
+            return null;
+        }
+
+
+        public static UrlVisit getCurrentChromeUrl(String chromeHistoryPath) throws IOException, SQLException {
+            File historyFile = new File(chromeHistoryPath);
+            if (!historyFile.exists()) {
+                System.out.println("Chrome history file not found.");
+                return null;
+            }
+
+            // Create a temporary file
+            File tempFile = Files.createTempFile("chrome_history", ".tmp").toFile();
+            System.out.println("Temp file created at: " + tempFile.getAbsolutePath());
+
+            // Ensure the temporary file is deleted after the program exits
+            tempFile.deleteOnExit();
+
+            // Copy the history file to the temporary file
+            Files.copy(historyFile.toPath(), tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+
+            UrlVisit currentUrl = null;
+            String url = "jdbc:sqlite:" + tempFile.getAbsolutePath();
+            Connection conn = null;
+
+            try {
+                conn = DriverManager.getConnection(url);
+                String sql = "SELECT url, last_visit_time FROM urls WHERE last_visit_time IS NOT NULL ORDER BY last_visit_time DESC LIMIT 1";
+                try (PreparedStatement pstmt = conn.prepareStatement(sql);
+                     ResultSet rs = pstmt.executeQuery()) {
+
+                    if (rs.next()) {
+                        String urlStr = rs.getString("url");
+                        long lastVisitTime = rs.getLong("last_visit_time");
+                        LocalDateTime visitTime = LocalDateTime.ofEpochSecond((lastVisitTime - 11644473600000000L) / 1000000L, 0, ZoneOffset.UTC);
+                        String status = "Using"; // or determine the status based on your logic
+
+                        return new UrlVisit(urlStr, visitTime, status);
+                    }
+                }
+            } finally {
+                // Close the connection and ensure it releases the lock
+                if (conn != null && !conn.isClosed()) {
+                    conn.close();
+                }
+
+                // Introduce a small delay to ensure the lock is released
+                try {
+                    Thread.sleep(100); // Sleep for 100 milliseconds to allow the lock to release
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+
+                // Explicitly delete the temp file after use
+                if (tempFile.exists()) {
+                    if (tempFile.delete()) {
+                        System.out.println("Temporary file deleted successfully: " + tempFile.getAbsolutePath());
+                    } else {
+                        System.out.println("Failed to delete temporary file: " + tempFile.getAbsolutePath());
+                    }
+                }
+            }
+
+            return currentUrl;
+        }
+
+        public static UrlVisit getCurrentEdgeUrl(String edgeHistoryPath) throws IOException, SQLException {
+            File historyFile = new File(edgeHistoryPath);
+            if (!historyFile.exists()) {
+                System.out.println("Edge history file not found.");
+                return null;
+            }
+
+            // Create a temporary file
+            File tempFile = Files.createTempFile("edge_history", ".tmp").toFile();
+            System.out.println("Temp file created at: " + tempFile.getAbsolutePath());
+
+            // Ensure the temporary file is deleted after the program exits
+            tempFile.deleteOnExit();
+
+            // Copy the history file to the temporary file
+            Files.copy(historyFile.toPath(), tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+
+            UrlVisit currentUrl = null;
+            String url = "jdbc:sqlite:" + tempFile.getAbsolutePath();
+            Connection conn = null;
+
+            try {
+                // Open a connection to the copied Edge history file
+                conn = DriverManager.getConnection(url);
+                String sql = "SELECT url, last_visit_time FROM urls WHERE last_visit_time IS NOT NULL ORDER BY last_visit_time DESC LIMIT 1";
+                try (PreparedStatement pstmt = conn.prepareStatement(sql);
+                     ResultSet rs = pstmt.executeQuery()) {
+
+                    if (rs.next()) {
+                        String urlStr = rs.getString("url");
+                        long lastVisitTime = rs.getLong("last_visit_time");
+                        LocalDateTime visitTime = LocalDateTime.ofEpochSecond((lastVisitTime - 11644473600000000L) / 1000000L, 0, ZoneOffset.UTC);
+                        String status = "Using"; // Determine the status based on your logic
+
+                        return new UrlVisit(urlStr, visitTime, status);
+                    }
+                }
+            } finally {
+                // Close the connection and ensure it releases the lock
+                if (conn != null && !conn.isClosed()) {
+                    conn.close();
+                }
+
+                // Introduce a small delay to ensure the lock is released
+                try {
+                    Thread.sleep(100); // Sleep for 100 milliseconds to allow the lock to release
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+
+                // Explicitly delete the temp file after use
+                if (tempFile.exists()) {
+                    if (tempFile.delete()) {
+                        System.out.println("Temporary file deleted successfully: " + tempFile.getAbsolutePath());
+                    } else {
+                        System.out.println("Failed to delete temporary file: " + tempFile.getAbsolutePath());
+                    }
+                }
+            }
+
+            return currentUrl;
+        }
+
+        private static void saveUrlVisitToDatabase(UrlVisit urlVisit, String dbUrl, String user, String password) throws SQLException {
+            String username = System.getProperty("user.name");
+            String systemName = retrieveSystemNameFromFile(); // Assuming the system name is retrieved from the file as shown in previous examples.
+
+            // Check if the same URL and actual_time already exists
+            String checkQuery = "SELECT COUNT(*) FROM url_visits WHERE url = ? AND actual_time = ?";
+            String insertQuery = "INSERT INTO url_visits (url, visit_time, actual_time, status, username, system_name) VALUES (?, ?, ?, ?, ?, ?)";
+
+            try (Connection connection = DriverManager.getConnection(dbUrl, user, password);
+                 PreparedStatement checkStmt = connection.prepareStatement(checkQuery);
+                 PreparedStatement insertStmt = connection.prepareStatement(insertQuery)) {
+
+                // Set parameters for checking duplicates based on actual_time (which is the original visitTime)
+                checkStmt.setString(1, urlVisit.getUrl());
+                checkStmt.setObject(2, urlVisit.getVisitTime());  // Check based on actual_time (which is visitTime)
+
+                try (ResultSet rs = checkStmt.executeQuery()) {
+                    rs.next();
+                    int count = rs.getInt(1); // Get the count of matching records
+
+                    if (count == 0) {
+                        // If no matching record found, proceed with the insert
+                        insertStmt.setString(1, urlVisit.getUrl());
+
+                        // Insert the current UTC time for the 'visit_time' column
+                        ZonedDateTime utcTime = ZonedDateTime.now(ZoneOffset.UTC);
+                        insertStmt.setTimestamp(2, Timestamp.valueOf(utcTime.toLocalDateTime()));
+
+                        // Insert the original visit time in 'actual_time' column
+                        insertStmt.setObject(3, urlVisit.getVisitTime());
+
+                        // Status, username, and systemName
+                        insertStmt.setString(4, urlVisit.getStatus());
+                        insertStmt.setString(5, username);
+                        insertStmt.setString(6, systemName);
+
+                        // Execute the insertion
+                        insertStmt.executeUpdate();
+                        logger.info("URL visit saved successfully.");
+                    } else {
+                        logger.info("Duplicate URL visit found. Skipping insertion for URL: {} at time: {}", urlVisit.getUrl(), urlVisit.getVisitTime());
+                    }
+                }
+            } catch (SQLException e) {
+                logger.error("Error saving URL visit to database: {}", e.getMessage(), e);
+            }
+        }
+
+        public static class UrlVisit {
+            private final String url;
+            private final LocalDateTime visitTime;
+            private String status;
+
+            public UrlVisit(String url, LocalDateTime visitTime, String status) {
+                this.url = url;
+                this.visitTime = visitTime;
+                this.status = status;
+            }
+
+            public String getUrl() {
+                return url;
+            }
+
+            public LocalDateTime getVisitTime() {
+                return visitTime;
+            }
+
+            public String getStatus() {
+                return status;
+            }
+
+            public void setStatus(String status) {
+                this.status = status;
+            }
+
+            @Override
+            public boolean equals(Object o) {
+                if (this == o) return true;
+                if (o == null || getClass() != o.getClass()) return false;
+                UrlVisit urlVisit = (UrlVisit) o;
+                return Objects.equals(url, urlVisit.url) && Objects.equals(visitTime, urlVisit.visitTime) && Objects.equals(status, urlVisit.status);
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(url, visitTime, status);
+            }
+
+            @Override
+            public String toString() {
+                return "UrlVisit{" +
+                        "url='" + url + '\'' +
+                        ", visitTime=" + visitTime +
+                        ", status='" + status + '\'' +
+                        '}';
+            }
+        }
+    }
+
+    // Application tracking methods
+    public static void trackApplications(String username) {
+        SystemInfo si = new SystemInfo();
+        OperatingSystem os = si.getOperatingSystem();
+
+        while (true) {
+            try {
+                int newActivePid = getForegroundProcessPid();
+                boolean isMinimized = isApplicationMinimized(newActivePid);
+
+                if (newActivePid != currentActivePid) {
+                    if (currentActivePid != -1) {
+                        ApplicationData appData = activeApplications.get(currentActivePid);
+                        if (appData != null && wasApplicationActive) {
+                            // Convert closeTime to UTC
+                            Timestamp closeTime = Timestamp.from(Instant.now().atZone(ZoneOffset.UTC).toInstant());
+                            appData.setCloseTime(closeTime);
+                            saveApplicationUsage(username, systemName, appData.getAppName(), appData.getOpenTime(), appData.getCloseTime());
+                            logger.info("Application usage saved: {} from {} to {}", appData.getAppName(), appData.getOpenTime(), appData.getCloseTime());
+                            activeApplications.remove(currentActivePid);
+                        }
+                    }
+
+                    // Update the new active PID and application data
+                    currentActivePid = newActivePid;
+                    wasApplicationActive = !isMinimized;
+
+                    if (!isMinimized) {
+                        // Convert openTime to UTC
+                        Timestamp openTime = Timestamp.from(Instant.now().atZone(ZoneOffset.UTC).toInstant());
+                        ApplicationData appData = new ApplicationData(os.getProcess(newActivePid).getName(), openTime);
+                        activeApplications.put(newActivePid, appData);
+                        logger.info("New application started: {} at {}", appData.getAppName(), appData.getOpenTime());
+                    }
+                }
+
+                // Sleep for a while before checking again (adjust as needed)
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                logger.error("Error during application tracking: ", e);
+            } catch (Exception e) {
+                logger.error("Unexpected error: ", e);
+            }
+        }
+    }
+
+    private static boolean isApplicationMinimized(int pid) {
+        HWND hwnd = User32.INSTANCE.GetForegroundWindow();
+        User32.RECT rect = new User32.RECT();
+        User32.INSTANCE.GetWindowRect(hwnd, rect);
+        return (rect.left == -32000 && rect.top == -32000);
+    }
+
+    private static int getForegroundProcessPid() {
+        HWND hwnd = User32.INSTANCE.GetForegroundWindow();
+        IntByReference pid = new IntByReference();
+        User32.INSTANCE.GetWindowThreadProcessId(hwnd, pid);
+        return pid.getValue();
+    }
+
+    private static void saveApplicationUsage(String username, String systemName, String appName, Timestamp openTime, Timestamp closeTime) {
+        // Set the JDBC URL to use UTC timezone
+        String jdbcURL = DatabaseConfig.getDbUrl();  // Get DB URL from DatabaseConfig
+        String dbUser = DatabaseConfig.getDbUser();  // Get DB User from DatabaseConfig
+        String dbPassword = DatabaseConfig.getDbPassword();  // Get DB Password from DatabaseConfig
+
+
+        // Convert openTime and closeTime to UTC
+        Timestamp openTimeUtc = Timestamp.from(openTime.toInstant().atZone(ZoneOffset.UTC).toInstant());
+        Timestamp closeTimeUtc = Timestamp.from(closeTime.toInstant().atZone(ZoneOffset.UTC).toInstant());
+
+        try (Connection connection = DriverManager.getConnection(jdbcURL, dbUser, dbPassword)) {
+            String sql = "INSERT INTO application_usage (date, username, system_name, application_name, open_time, close_time) VALUES (?, ?, ?, ?, ?, ?)";
+            PreparedStatement statement = connection.prepareStatement(sql);
+
+            // Get the current date in UTC
+            LocalDate currentDate = LocalDate.now(ZoneOffset.UTC);
+
+            statement.setDate(1, java.sql.Date.valueOf(currentDate)); // Set the date parameter in UTC
+            statement.setString(2, username);
+            statement.setString(3, systemName);
+            statement.setString(4, appName);
+            statement.setTimestamp(5, openTimeUtc);
+            statement.setTimestamp(6, closeTimeUtc);
+
+            statement.executeUpdate();
+        } catch (SQLException e) {
+            logger.error("SQL error occurred: {}", e.getMessage(), e);  // Log error message and stack trace
+        }
+    }
+
+    public static class USBDetector {
+        private static final long POLL_INTERVAL_MS = 10000; // Poll every 10 seconds
+        private static final String username = System.getProperty("user.name");
+        private static final Map<String, Long> deviceInsertTimes = new HashMap<>();
+        private static final Map<String, String> initialDevices = new HashMap<>();
+
+        public void startDetection() {
+            try {
+                // Initial detection of already connected devices
+                initialDevices.putAll(getConnectedDevices());
+
+                while (true) {
+                    Map<String, String> currentDevices = getConnectedDevices();
+                    processDeviceInsertions(currentDevices);
+                    processDeviceRemovals(currentDevices);
+                    Thread.sleep(POLL_INTERVAL_MS);
+                }
+            } catch (Exception e) {
+                logger.error("An unexpected error occurred: {}", e.getMessage(), e);  // Log error message and stack trace
+            }
+        }
+
+        private static Map<String, String> getConnectedDevices() throws Exception {
+            Map<String, String> devices = new HashMap<>();
+            Process processDevices = Runtime.getRuntime().exec("wmic path Win32_PnPEntity where \"PNPDeviceID like 'USB%'\" get DeviceID, PNPDeviceID, Name");
+
+            try (BufferedReader readerDevices = new BufferedReader(new InputStreamReader(processDevices.getInputStream()))) {
+                String line;
+                while ((line = readerDevices.readLine()) != null) {
+                    if (line.trim().isEmpty() || line.contains("DeviceID")) continue;
+
+                    String[] parts = line.trim().split("\\s+", 3);
+                    if (parts.length < 3) continue;
+
+                    String deviceID = parts[0];  // DeviceID
+                    String pnpDeviceID = parts[1];  // PNPDeviceID (contains serial number or unique ID)
+                    String deviceName = parts[2];  // Name or Description (device name)
+
+                    devices.put(pnpDeviceID, deviceName);
+                }
+            }
+            return devices;
+        }
+
+        private static void processDeviceInsertions(Map<String, String> currentDevices) {
+            for (Map.Entry<String, String> device : currentDevices.entrySet()) {
+                if (!deviceInsertTimes.containsKey(device.getKey()) && !initialDevices.containsKey(device.getKey())) {
+                    // New device detected after the application started
+                    deviceInsertTimes.put(device.getKey(), System.currentTimeMillis());
+                    String deviceInfo = device.getValue();
+                    System.out.println("USB device inserted: " + deviceInfo);
+                    saveDeviceInsertion(device.getKey(), deviceInfo, System.currentTimeMillis(), username, systemName);
+                    showPopup("USB device inserted: " + deviceInfo);
+                }
+            }
+        }
+
+        private static void processDeviceRemovals(Map<String, String> currentDevices) {
+            Set<String> currentDeviceIDs = currentDevices.keySet();
+            Set<String> removedDevices = new HashSet<>(deviceInsertTimes.keySet());
+            removedDevices.removeAll(currentDeviceIDs);
+
+            for (String device : removedDevices) {
+                Long insertionTime = deviceInsertTimes.remove(device);
+                if (insertionTime != null) {
+                    long removalTime = System.currentTimeMillis();
+                    long duration = (removalTime - insertionTime) / 1000; // Duration in seconds
+                    System.out.println("USB device removed: " + device);
+                    updateDeviceRemoval(device, removalTime, duration);
+                }
+            }
+        }
+
+        private static void saveDeviceInsertion(String deviceID, String deviceInfo, long insertionTime, String username, String systemName) {
+            String jdbcURL = DatabaseConfig.getDbUrl();  // Get DB URL from DatabaseConfig
+            String dbUser = DatabaseConfig.getDbUser();  // Get DB User from DatabaseConfig
+            String dbPassword = DatabaseConfig.getDbPassword();  // Get DB Password from DatabaseConfig
+
+            String query = "INSERT INTO usb_logs (device_name, insertion_time, device_id, username, system_name) VALUES (?, FROM_UNIXTIME(?), ?, ?, ?)";
+
+            try (Connection conn = DriverManager.getConnection(jdbcURL, dbUser, dbPassword);
+                 PreparedStatement stmt = conn.prepareStatement(query)) {
+
+                stmt.setString(1, deviceInfo);
+                stmt.setLong(2, insertionTime / 1000);
+                stmt.setString(3, deviceID);
+                stmt.setString(4, username);
+                stmt.setString(5, systemName);
+                stmt.executeUpdate();
+                System.out.println("Device info saved to database with system name: " + deviceInfo + " (" + systemName + ")");
+
+            } catch (SQLException e) {
+                logger.error("Database connection error: {}", e.getMessage(), e);  // Log both message and stack trace
+            }
+        }
+
+
+        private static void updateDeviceRemoval(String deviceID, long removalTime, long duration) {
+            String jdbcURL = DatabaseConfig.getDbUrl();  // Get DB URL from DatabaseConfig
+            String dbUser = DatabaseConfig.getDbUser();  // Get DB User from DatabaseConfig
+            String dbPassword = DatabaseConfig.getDbPassword();  // Get DB Password from DatabaseConfig
+
+
+            String query = "UPDATE usb_logs SET removal_time = FROM_UNIXTIME(?), total_duration = ? WHERE device_id = ? AND removal_time IS NULL";
+
+            try (Connection conn = DriverManager.getConnection(jdbcURL, dbUser, dbPassword);
+                 PreparedStatement stmt = conn.prepareStatement(query)) {
+
+                stmt.setLong(1, removalTime / 1000);
+                stmt.setLong(2, duration);
+                stmt.setString(3, deviceID);
+                int rowsAffected = stmt.executeUpdate();
+                if (rowsAffected > 0) {
+                    System.out.println("Device info updated in database: " + deviceID);
+                } else {
+                    System.out.println("No device found to update: " + deviceID);
+                }
+
+            } catch (SQLException e) {
+                System.err.println("Database connection error: " + e.getMessage());
+                logger.error("Database connection error: {}", e.getMessage(), e);  // Log the error message and stack trace
+            }
+        }
+
+        private static void showPopup(String message) {
+            javax.swing.SwingUtilities.invokeLater(() -> {
+                javax.swing.JOptionPane.showMessageDialog(null, "USB device detected- Notification sent to respective department", "USB Device Notification", javax.swing.JOptionPane.INFORMATION_MESSAGE);
+            });
+        }
+
+    }
+
+    public static class ActivityMonitor {
+
+        private static final List<String> SUSPICIOUS_PROCESSES = Arrays.asList(
+                "AutoClicker.exe", "AutoHotkey.exe", "AutoKey.exe", "AutoIt3.exe",
+                "Auto Clicker.exe", "Auto Tap.exe", "Auto Typer.exe", "Free Mouse Clicker.exe",
+                "GS Auto Clicker.exe", "Mouse Jiggler.exe", "Auto Keyboard Presser.exe",
+                "Incremental game.exe", "MurGee Clicker.exe", "Remote Mouse.exe",
+                "AutoType Installer.exe"
+        );
+
+        public void startMonitoring() {
+            while (true) {
+                try {
+                    detectSuspiciousProcesses();
+                    Thread.sleep(5000); // Check every 5 seconds
+                } catch (Exception e) {
+                    logger.error("An unexpected error occurred: {}", e.getMessage(), e); // Log the exception with message and stack trace
+                }
+            }
+        }
+
+        private void detectSuspiciousProcesses() {
+            try {
+                String line;
+                Process p = Runtime.getRuntime().exec("tasklist");
+                BufferedReader input = new BufferedReader(new InputStreamReader(p.getInputStream()));
+
+                while ((line = input.readLine()) != null) {
+                    for (String processName : SUSPICIOUS_PROCESSES) {
+                        if (line.contains(processName)) {
+                            System.out.println("Warning: Suspicious process detected - " + processName);
+                            // Show warning message to the user
+                            JOptionPane.showMessageDialog(null, "You are engaging in malpractices by using " + processName + ". This has been recorded.", "Warning", JOptionPane.WARNING_MESSAGE);
+
+                            // Log the incident to the database
+                            logSuspiciousActivity(processName);
+                        }
+                    }
+                }
+                input.close();
+            } catch (Exception err) {
+                logger.error("An error occurred: {}", err.getMessage(), err); // Log the exception with stack trace
+            }
+        }
+
+        private void logSuspiciousActivity(String processName) {
+            String jdbcURL = DatabaseConfig.getDbUrl();  // Get DB URL from DatabaseConfig
+            String dbUser = DatabaseConfig.getDbUser();  // Get DB User from DatabaseConfig
+            String dbPassword = DatabaseConfig.getDbPassword();  // Get DB Password from DatabaseConfig
+
+            try {
+                String username = System.getProperty("user.name");
+                String systemName = InetAddress.getLocalHost().getHostName();
+
+                // Get current time in UTC
+                Instant now = Instant.now();
+                ZonedDateTime utcDateTime = ZonedDateTime.ofInstant(now, ZoneId.of("UTC"));
+
+                // Establish a database connection
+                Connection conn = DriverManager.getConnection(jdbcURL, dbUser, dbPassword);
+                String sql = "INSERT INTO suspicious_activity (application_name, username, system_name, time_of_detection) VALUES (?, ?, ?, ?)";
+                PreparedStatement pstmt = conn.prepareStatement(sql);
+                pstmt.setString(1, processName);
+                pstmt.setString(2, username);
+                pstmt.setString(3, systemName);
+                pstmt.setObject(4, utcDateTime.toLocalDateTime()); // Convert to LocalDateTime for SQL
+
+                // Execute the SQL statement
+                pstmt.executeUpdate();
+
+                // Close the connection
+                pstmt.close();
+                conn.close();
+
+                System.out.println("Suspicious activity logged to database.");
+            } catch (SQLException e) {
+                logger.error("SQL Error occurred: {}", e.getMessage(), e); // Log SQLException with message and stack trace
+            } catch (Exception e) {
+                logger.error("An unexpected error occurred: {}", e.getMessage(), e); // Log any other exceptions with message and stack trace
+            }
+        }
+    }
+
+    public static void checkForUpdate() {
+        try {
+            // Fetch the latest version number from S3
+            URL url = new URL(LATEST_VERSION_URL);
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+
+            BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+            String latestVersion = in.readLine();
+            in.close();
+
+            // Check if the version is newer and if any file needs to be updated
+            if (isNewVersionAvailable(latestVersion)) {
+                int response = showUpdateAvailableDialog();
+                if (response == JOptionPane.OK_OPTION) {
+                    // Create the download folder if it doesn't exist
+                    File folder = new File(DOWNLOAD_FOLDER);
+                    if (!folder.exists()) {
+                        folder.mkdirs();
+                    }
+
+                    // Download all update files
+                    for (Map.Entry<String, String> entry : FILE_URLS.entrySet()) {
+                        String fileName = entry.getKey();
+                        String fileUrl = entry.getValue();
+                        downloadFile(fileUrl, fileName);
+                    }
+
+                    // Notify user that updates have been downloaded
+                    JOptionPane.showMessageDialog(null, "Updates downloaded successfully.Please Restart your windows and continue.");
+                }
+            } else {
+                // Notify  that they are up-to-date
+                System.out.println("Your application is up-to-date.");
+            }
+
+        } catch (Exception e) {
+            logger.error("An unexpected error occurred: {}", e.getMessage(), e); // Log the error with stack trace
+
+        }
+    }
+
+    public static boolean isNewVersionAvailable(String latestVersion) {
+        // Simple version comparison logic
+        return !CURRENT_VERSION.equals(latestVersion);
+    }
+
+    public static int showUpdateAvailableDialog() {
+        String[] options = {"Update Now !", "Later"};
+        return JOptionPane.showOptionDialog(null,
+                "Update Available! Do you want to download it now?",
+                "Update Available",
+                JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.INFORMATION_MESSAGE,
+                null,
+                options,
+                options[0]);
+
+    }
+
+    public static boolean isFileDownloaded(String fileName) {
+        // Check if the file exists in the download folder
+        File file = new File(DOWNLOAD_FOLDER, fileName);
+        return file.exists();
+    }
+
+    public static void downloadFile(String fileUrl, String fileName) throws IOException {
+        URL url = new URL(fileUrl);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("GET");
+
+        // Create the file in the download folder
+        File file = new File(DOWNLOAD_FOLDER, fileName);
+        try (InputStream in = connection.getInputStream();
+             FileOutputStream out = new FileOutputStream(file)) {
+            byte[] buffer = new byte[4096];
+            int bytesRead;
+            while ((bytesRead = in.read(buffer)) != -1) {
+                out.write(buffer, 0, bytesRead);
+            }
+        }
+    }
+
+
+    private static void cleanLogFile(String filePath) {
+        try {
+            // Ensure the file exists
+            File logFile = new File(filePath);
+            if (!logFile.exists()) {
+                System.err.println("File not found: " + filePath);
+                return;
+            }
+
+            // Read all lines from the log file
+            List<String> lines = Files.readAllLines(Paths.get(filePath));
+            List<String> validLines = new ArrayList<>();
+
+            // Get the current date and calculate the threshold date
+            LocalDate currentDate = LocalDate.now();
+            LocalDate thresholdDate = currentDate.minusDays(7); // The date 7 days ago
+
+            for (String line : lines) {
+                // Ensure the line has a date part at the start (at least 10 characters)
+                if (line.length() >= 10) {
+                    String dateStr = line.substring(0, 10); // Get the first 10 characters as date
+                    try {
+                        // Parse the date
+                        LocalDate logDate = LocalDate.parse(dateStr, DATE_FORMATTER);
+
+                        // Check if the date is within the last 7 days
+                        if (logDate.isAfter(thresholdDate.minusDays(1))) {
+                            validLines.add(line); // Keep this line if it is within the last 7 days
+                        } else {
+                            System.out.println("Deleting line with date: " + dateStr);
+                        }
+                    } catch (DateTimeParseException e) {
+                        // If the date is not in the expected format, delete the line
+                        System.err.println("Error parsing date from line: " + line + " - " + e.getMessage());
+                        System.out.println("Deleting line with invalid date format: " + line);
+                    }
+                } else {
+                    // If the line does not have enough characters for a date, delete the line
+                    System.out.println("Deleting line with insufficient length: " + line);
+                }
+            }
+
+            // Write the valid lines back to the log file (overwrite the original file)
+            Files.write(Paths.get(filePath), validLines);
+
+            System.out.println("Log file cleaned successfully. Only entries from the last 7 days have been kept, and invalid lines have been removed.");
+        } catch (IOException e) {
+            System.err.println("Error reading or writing the log file: " + e.getMessage());
+        }
+    }
+
+    public static class DatabaseConfig {
+        private static final String DB_URL = "jdbc:mysql://pmsglobal.cve060ce6je3.us-east-1.rds.amazonaws.com:3306/PMS_PRO";
+        private static final String DB_USER = "admin";
+        private static final String DB_PASSWORD = "wfxicVdxG71bJvdVhFN2";
+
+        // Additional properties
+        private static final String PORTAL_URL = "http://3.110.23.123/firstpage";
+        private static final String APP_VERSION = "1.0.0.13";
+
+        public static String getDbUrl() {
+            return DB_URL;
+        }
+
+        public static String getDbUser() {
+            return DB_USER;
+        }
+
+        public static String getDbPassword() {
+            return DB_PASSWORD;
+        }
+
+        public static String getPortalUrl() {
+            return PORTAL_URL;
+        }
+
+        public static String getAppVersion() {
+            return APP_VERSION;
+        }
+    }
+
+
+    // NativeKeyListener and NativeMouseInputListener methods
+    @Override
+    public void nativeKeyPressed(NativeKeyEvent e) {
+        if (!keyPressed) {
+            resetInactivityTimer();
+            keyPressed = true;
+        }
+
+        updateActiveAndInactiveTime();
+    }
+
+    @Override
+    public void nativeKeyReleased(NativeKeyEvent e) {
+        keyPressed = false;
+
+    }
+
+    @Override
+    public void nativeKeyTyped(NativeKeyEvent e) {
+    }
+
+    @Override
+    public void nativeMouseClicked(NativeMouseEvent e) {
+        resetInactivityTimer();
+
+        updateActiveAndInactiveTime();
+    }
+
+    @Override
+    public void nativeMousePressed(NativeMouseEvent e) {
+        resetInactivityTimer();
+        updateActiveAndInactiveTime();
+
+    }
+
+    @Override
+    public void nativeMouseReleased(NativeMouseEvent e) {
+
+    }
+
+    @Override
+    public void nativeMouseMoved(NativeMouseEvent e) {
+        resetInactivityTimer();
+        updateActiveAndInactiveTime();
+    }
+
+    @Override
+    public void nativeMouseDragged(NativeMouseEvent e) {
+        updateActiveAndInactiveTime();
+        resetInactivityTimer();
+    }
+
+
+    // ApplicationData class to store application usage information
+    private static class ApplicationData {
+        private final String appName;
+        private final Timestamp openTime;
+        private Timestamp closeTime;
+
+        public ApplicationData(String appName, Timestamp openTime) {
+            this.appName = appName;
+            this.openTime = openTime;
+        }
+
+        public String getAppName() {
+            return appName;
+        }
+
+        public Timestamp getOpenTime() {
+            return openTime;
+        }
+
+        public void setCloseTime(Timestamp closeTime) {
+            this.closeTime = closeTime;
+        }
+
+        public Timestamp getCloseTime() {
+            return closeTime;
+        }
+    }
+}
